@@ -1,4 +1,4 @@
-﻿// OutliveClone.h : Include file for standard system include files,
+﻿// Playground.h : Include file for standard system include files,
 // or project specific include files.
 
 #pragma once

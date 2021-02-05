@@ -1,0 +1,18 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${default}",
+                "${workspaceFolder}/vendor/glad/include",
+                "${workspaceFolder}/vendor/glfw/include",
+                "${workspaceFolder}/vendor/glm",
+                "${workspaceFolder}/vendor/stb"
+            ],
+            "compilerPath": "/usr/bin/clang",
+            "intelliSenseMode": "clang-x64",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        }
+    ],
+    "version": 4
+}
