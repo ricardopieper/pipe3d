@@ -13,12 +13,12 @@ uniform mat4 u_model;
 
 out vec3 fragmentColor;
 out vec3 fragmentNormal;
-out vec3 worldspaceVertex;
+out vec3 fragPosition;
 out vec2 fragmentUv;
 out float specularStrength;
 
 void main() {
-    worldspaceVertex = vec3(u_model * vec4(position, 1));
+    fragPosition = vec3(u_model * vec4(position, 1));
     gl_Position = u_projection * u_view * u_model * vec4(position, 1);
     fragmentColor = vertexColor;
     fragmentNormal = vertexNormal;
@@ -34,7 +34,7 @@ layout(location = 0) out vec4 color;
 
 in vec3 fragmentColor;
 in vec3 fragmentNormal;
-in vec3 worldspaceVertex;
+in vec3 fragPosition;
 in vec2 fragmentUv;
 in float specularStrength;
 
@@ -54,28 +54,27 @@ void main() {
     vec4 fragVertexColor = fromVertexColor * vec4(fragmentColor, 1);
     vec4 fragTextureColor = fromTextureColor * texture(textureSampler, fragmentUv);
 
-
     //vec4 calculatedFragColor = vec4(fragmentColor, 1);
     vec4 calculatedFragColor = fragVertexColor + fragTextureColor;
    
     if (calculatedFragColor.a < 0.5) discard;
 
-    vec3 lightToSurface = normalize(lampPosition - worldspaceVertex);
+    vec3 lightToSurface = normalize(lampPosition - fragPosition);
     vec3 normal = normalize(fragmentNormal); //ensure normal is actually normal
     float lightAngle = dot(normal, lightToSurface);
     float diffusion = max(lightAngle, 0.0);
     vec4 diffuse = diffusion * calculatedFragColor;
 
     float shininess = 32;
-    //compute the vector that points from worldspaceVertex towards the camera
-    vec3 cameraToSurface = normalize(cameraPosition - worldspaceVertex);
+    //compute the vector that points from fragPosition towards the camera
+    vec3 cameraToSurface = normalize(cameraPosition - fragPosition);
 
     //we need a vector that points towards the light source
     vec3 surfaceToLight = -lightToSurface;
 
     //imagine a ray of light hitting the surface at an angle.
-    //Specifically, suppose the light is hitting at worldspaceVertex
-    //(though worldspaceVertex is being interpolated as usual)
+    //Specifically, suppose the light is hitting at fragPosition
+    //(though fragPosition is being interpolated as usual)
     //the normal is perpendicular to the surface. If we imagine
     //a surface with a face pointing upwards, the normal is a vector
     //that indicates the "pointing upwards" part (vec(0,1,0)). 
@@ -94,13 +93,12 @@ void main() {
     float specularFactor = pow(angleFromCameraToReflection, shininess);
     vec4 specular = specularStrength * specularFactor * vec4(1);
     
-    vec4 colorResult = (ambientLight + diffuse + specular) * calculatedFragColor;
+    float dist = distance(lampPosition, fragPosition) / 3;
+
+    //all lights
+    vec4 colorResult = (ambientLight + diffuse / dist + specular / dist) * calculatedFragColor;
 
     //distance from light to point
-    float dist = distance(lampPosition, worldspaceVertex) / 3;
 
-    colorResult = colorResult / dist;
-
-    
     color = colorResult;
 }

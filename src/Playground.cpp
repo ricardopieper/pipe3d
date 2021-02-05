@@ -109,7 +109,7 @@ int main()
     float width = 1024;
     float height = 768;
 
-    GLFWwindow* window = glfwCreateWindow(width, height, "Journey through learning OpenGL", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(width, height, "Pipe3D Playground", NULL, NULL);
     glfwMakeContextCurrent(window);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 
@@ -147,16 +147,16 @@ int main()
         Scene scene;
 
         auto wavefrontCube = WavefrontMeshLoader::Load(
-            "/home/ricardo/lightcube.obj", 
-            "/home/ricardo/lightcube.mtl");
+            "./assets/models/lightcube/lightcube.obj", 
+            "./assets/models/lightcube/lightcube.mtl");
        
         Geometry cubeGeometry = wavefrontCube[0].ConvertToGeometry();
         auto lightSource = scene.FromGeometry(&cubeGeometry, emissiveShader, Texture(""));
         lightSource->Translation = glm::vec3(0.0f);
-    
 
-        auto sponza = WavefrontMeshLoader::Load("/home/ricardo/newsponza/sponza.obj", "/home/ricardo/newsponza/sponza.mtl");
-       
+        auto sponza = WavefrontMeshLoader::Load(
+            "./assets/models/sponza/sponza.obj", 
+            "./assets/models/sponza/sponza.mtl");
 
         std::map<std::string, Texture> texture_map;
 
@@ -188,22 +188,15 @@ int main()
             obj->Scale = glm::vec3(3,3,3);
         }
         
-        auto objects = WavefrontMeshLoader::Load("/home/ricardo/renderer_test.obj", "/home/ricardo/renderer_test.mtl");
-        for (auto wavefrontObj : objects) {
-            Geometry geom = wavefrontObj.ConvertToGeometry();
-            auto obj = scene.FromGeometry(&geom, defaultShader, Texture(""));
-            obj->Translation = glm::vec3(1.0f);
-            obj->Scale = glm::vec3(0.3, 0.3, 0.3);
-
-        }
-
-        auto donut = WavefrontMeshLoader::Load("/home/ricardo/donut3.obj", "/home/ricardo/donut3.mtl");
+        auto donut = WavefrontMeshLoader::Load(
+            "./assets/models/donut/donut3.obj", 
+            "./assets/models/donut/donut3.mtl");
+        
         for (auto wavefrontObj : donut) {
             if (wavefrontObj.meshName == "Cube") continue;
             Geometry geom = wavefrontObj.ConvertToGeometry();
             auto obj = scene.FromGeometry(&geom, defaultShader, Texture(""));
             obj->Translation = glm::vec3(1.0f);
-
             obj->Translation = glm::vec3(0.3, 0.0, 0.3);
         }
 
@@ -305,7 +298,7 @@ int main()
 
             renderer.Clear();
             renderer.Render(scene, camera, projection);
-            defaultShader.SetUniform1f("ambientLight", 0.2);
+            defaultShader.SetUniform1f("ambientLight", 0.1);
             defaultShader.SetUniform3f("lampPosition", lightSource->Translation.x,  lightSource->Translation.y,  lightSource->Translation.z);
             defaultShader.SetUniform3f("cameraPosition", camera.Position.x, camera.Position.y, camera.Position.z);
 
