@@ -18,7 +18,9 @@ struct WavefrontMesh
     std::vector<glm::vec2> uvs;
     std::vector<glm::vec3> normals;
     std::vector<unsigned int> vertexIndices;
+    glm::vec3 ambientRgb;
     glm::vec3 diffuseRgb;
+    glm::vec3 specularRgb;
     float specularStrength;
     int illuminationModel;
     //map_Ka
@@ -37,18 +39,11 @@ struct WavefrontMesh
     Geometry ConvertToGeometry() {
         Geometry geom;
         
-        float specularStrengthNormalized = specularStrength / 900;
-
-        //specular off
-        if (illuminationModel == 1) {
-            specularStrengthNormalized = 0;
-        }
-
         for (int i = 0; i < vertices.size(); i++) {
             auto vertex = vertices[i];
             auto normal = normals[i];
             auto uv = uvs[i];
-            Vertex v(vertex, diffuseRgb, normal, uv, specularStrengthNormalized);
+            Vertex v(vertex, diffuseRgb, normal, uv);
             geom.VertexData.push_back(v);
         }
 
@@ -56,12 +51,27 @@ struct WavefrontMesh
         
         return geom;
     }
-
+    Material GetMaterial() {
+        //900 seems to be blender max value
+        
+        Material m;
+        m.ambient = this->ambientRgb;
+        m.diffuse = this->diffuseRgb;
+        m.specular = this->specularRgb;
+        if (illuminationModel == 1) {
+            m.shininess = 0;
+        } else {
+            m.shininess = specularStrength;
+        }
+        return m;
+    }
 };
 
 struct WavefrontMaterial
 {
+    glm::vec3 ambientRgb;
     glm::vec3 diffuseRgb;
+    glm::vec3 specularRgb;
     float specularStrength;
     int illuminationModel;
     std::string materialName;
@@ -131,7 +141,7 @@ private:
                 indexedVectors[vec] = newIndex;
             }
         }
-        printf("Reused %i vertices out of %i\n", reused, vectors.size());
+        printf("Reused %i vertices out of %lu\n", reused, vectors.size());
 
         mesh.vertexIndices = openglIndices;
         mesh.vertices = vertices;
@@ -192,14 +202,14 @@ public:
                         }
                     }
                     char name[512];
-                    fscanf(file, "%s\n", &name);
+                    fscanf(file, "%s\n", (char*)name);
                     std::string buffer(name);
                     current.meshName = buffer;
                 }
                 else if (strcmp(line, "usemtl") == 0)
                 {
                     char name[512];
-                    fscanf(file, "%s\n", &name);
+                    fscanf(file, "%s\n", (char*)name);
                     std::string buffer(name);
                     current.materialName = buffer;
                 }
@@ -312,15 +322,27 @@ public:
                     currentMaterial = WavefrontMaterial();
                 }
                 char name[512];
-                fscanf(materialFile, "%s\n", &name);
+                fscanf(materialFile, "%s\n", (char*)name);
                 std::string buffer(name);
                 currentMaterial.materialName = buffer;
+            }
+            else if (strcmp(line, "Ka") == 0)
+            {
+                glm::vec3 ambientRgb;
+                fscanf(materialFile, "%f %f %f\n", &ambientRgb.r, &ambientRgb.g, &ambientRgb.b);
+                currentMaterial.ambientRgb = ambientRgb;
             }
             else if (strcmp(line, "Kd") == 0)
             {
                 glm::vec3 diffuseRgb;
                 fscanf(materialFile, "%f %f %f\n", &diffuseRgb.r, &diffuseRgb.g, &diffuseRgb.b);
                 currentMaterial.diffuseRgb = diffuseRgb;
+            }
+            else if (strcmp(line, "Ks") == 0)
+            {
+                glm::vec3 specularRgb;
+                fscanf(materialFile, "%f %f %f\n", &specularRgb.r, &specularRgb.g, &specularRgb.b);
+                currentMaterial.specularRgb = specularRgb;
             }
             else if (strcmp(line, "Ns") == 0)
             {
@@ -331,35 +353,35 @@ public:
              else if (strcmp(line, "map_Ka") == 0)
             {
                 char name[512];
-                fscanf(materialFile, "%s\n", &name);
+                fscanf(materialFile, "%s\n", (char*)name);
                 std::string buffer(name);
                 currentMaterial.ambientTexturePath = name;
             }
              else if (strcmp(line, "map_Kd") == 0)
             {
                 char name[512];
-                fscanf(materialFile, "%s\n", &name);
+                fscanf(materialFile, "%s\n", (char*)name);
                 std::string buffer(name);
                 currentMaterial.diffuseTexturePath = name;
             }
              else if (strcmp(line, "map_Ks") == 0)
             {
                 char name[512];
-                fscanf(materialFile, "%s\n", &name);
+                fscanf(materialFile, "%s\n", (char*)name);
                 std::string buffer(name);
                 currentMaterial.specularTexturePath = name;
             }
             else if (strcmp(line, "map_d") == 0)
             {
                 char name[512];
-                fscanf(materialFile, "%s\n", &name);
+                fscanf(materialFile, "%s\n", (char*)name);
                 std::string buffer(name);
                 currentMaterial.alphaTexturePath = name;
             }
-             else if (strcmp(line, "map_bump") == 0)
+             else if (strcmp(line, "map_Bump") == 0)
             {
                 char name[512];
-                fscanf(materialFile, "%s\n", &name);
+                fscanf(materialFile, "%s\n", (char*)name);
                 std::string buffer(name);
                 currentMaterial.bumpTexturePath = name;
             }
@@ -381,7 +403,10 @@ public:
             {
                 if (mesh.materialName == mat.materialName)
                 {
+                    mesh.ambientRgb = mat.ambientRgb;
                     mesh.diffuseRgb = mat.diffuseRgb;
+                    mesh.specularRgb = mat.specularRgb;
+
                     mesh.specularStrength = mat.specularStrength;
                     mesh.illuminationModel = mat.illuminationModel;
 

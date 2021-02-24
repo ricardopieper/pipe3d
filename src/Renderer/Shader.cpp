@@ -5,37 +5,23 @@
 #include <sstream>
 #include <iostream>
 #include <glm/glm.hpp>
+#include <sys/types.h>
+#include <sys/inotify.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <thread>
+#include <unistd.h>
 
-struct ShaderSource {
-    std::string Vertex;
-    std::string Fragment;
-};
 
-static ShaderSource ParseShader(const std::string& filepath) {
-    std::ifstream stream(filepath);
-    std::string line;
-    std::stringstream ss[2];
-    unsigned int type = -1;
-    while (getline(stream, line)) {
-        if(line.find("#shader") != std::string::npos) {
-            if (line.find("vertex") != std::string::npos) {
-                type = 0;
-            } else if (line.find("fragment") != std::string::npos) {
-                type = 1;
-            }
-        }
-        else {
-            ss[type] << line << '\n';
-        }
-    }
-
-    ShaderSource sources;
-    sources.Vertex = ss[0].str();
-    sources.Fragment = ss[1].str();
-    return sources;
+static std::string LoadFile(const std::string& path) {
+    std::ifstream t(path);
+    std::stringstream buffer;
+    buffer << t.rdbuf();
+    return buffer.str();
 }
 
-unsigned int RunCompileShader(unsigned int type, const std::string& source) {
+unsigned int RunCompileShader(unsigned int type, const std::string& path, const std::string& source) {
     unsigned int id = glCreateShader(type);
     const char* src = source.c_str();
     glShaderSource(id, 1, &src, nullptr);
@@ -49,7 +35,7 @@ unsigned int RunCompileShader(unsigned int type, const std::string& source) {
         glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
         char* message = new char[length];
         glGetShaderInfoLog(id, length, &length, message);
-        std::cout << "Failed to compile: " << (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << std::endl;
+        std::cout << "Failed to compile "<<path<<": " << (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << std::endl;
         std::cout << message << std::endl;
         glDeleteShader(id);
         delete message;
@@ -59,9 +45,9 @@ unsigned int RunCompileShader(unsigned int type, const std::string& source) {
     return id;
 }
 
-int CreateShader(unsigned int program, const std::string& vertexShader, const std::string& fragmentShader) {
-    unsigned int vs = RunCompileShader(GL_VERTEX_SHADER, vertexShader);
-    unsigned int fs = RunCompileShader(GL_FRAGMENT_SHADER, fragmentShader);
+int CreateShader(unsigned int program, Shader& shader, const std::string& vertexShader, const std::string& fragmentShader) {
+    unsigned int vs = RunCompileShader(GL_VERTEX_SHADER, shader.vertexPath, vertexShader);
+    unsigned int fs = RunCompileShader(GL_FRAGMENT_SHADER, shader.fragmentPath, fragmentShader);
     glAttachShader(program, vs);
     glAttachShader(program, fs);
     glLinkProgram(program);
@@ -72,11 +58,48 @@ int CreateShader(unsigned int program, const std::string& vertexShader, const st
     return program;
 }
 
-Shader::Shader(const std::string& filepath) : filepath(filepath), IsDefault(false) {
+Shader::Shader(const std::string& vertex, const std::string& fragment): vertexPath(vertex), fragmentPath(fragment), IsDefault(false) {
     rendererId = glCreateProgram();
 }
 
 Shader::~Shader() {
+}
+
+void Shader::Reload() {
+    uniformCache.clear();
+    Unbind();
+    glDeleteProgram(rendererId);
+    rendererId = glCreateProgram();
+    CompileShader();
+}
+
+void Shader::ListenChanges() {
+    fileChangeListener.push_back(new std::thread([this]() {
+        auto fd = inotify_init();
+        const int buflen = 1024 * (sizeof(inotify_event) + 16);
+        char buffer[buflen];
+        auto wd = inotify_add_watch(fd, this->vertexPath.c_str(), IN_MODIFY | IN_CREATE | IN_DELETE);
+        while (true) {
+            int length = read(fd, buffer, buflen ); 
+            printf("Vertex shader program change detected\n");
+            this->Changed = true;
+        }
+        ( void ) inotify_rm_watch( fd, wd );
+        ( void ) close( fd );
+    }));
+    fileChangeListener.push_back(new std::thread([this]() {
+        auto fd = inotify_init();
+        const int buflen = 1024 * (sizeof(inotify_event) + 16);
+        char buffer[buflen];
+        auto wd = inotify_add_watch(fd, this->fragmentPath.c_str(), IN_MODIFY | IN_CREATE | IN_DELETE);
+        while (true) {
+            int length = read(fd, buffer, buflen ); 
+            printf("Fragment shader program change detected\n");
+            this->Changed = true;
+        }
+        ( void ) inotify_rm_watch( fd, wd );
+        ( void ) close( fd );
+    }));
 }
 
 void Shader::Bind() const {
@@ -88,8 +111,9 @@ void Shader::Unbind() const {
 }
 
 void Shader::CompileShader() {
-    auto shaders = ParseShader(filepath);
-    CreateShader(rendererId, shaders.Vertex, shaders.Fragment);
+    auto vertex = LoadFile(vertexPath);
+    auto fragment = LoadFile(fragmentPath);
+    CreateShader(rendererId, *this, vertex, fragment);
 }
 
 void Shader::SetUniform1i(const std::string& name, int v0) {
@@ -117,6 +141,11 @@ void Shader::SetUniform3f(const std::string& name, float v0, float v1, float v2)
     glUniform3f(location, v0, v1, v2);
 }
 
+void Shader::SetUniformVec3(const std::string& name, glm::vec3 vec3) {
+    int location = GetUniformLocation(name);
+    glUniform3f(location, vec3.x, vec3.y, vec3.z);
+}
+
 void Shader::SetUniform4f(const std::string& name, float v0, float v1, float v2, float v3) {
     int location = GetUniformLocation(name);
     glUniform4f(location, v0, v1, v2, v3);
@@ -131,7 +160,7 @@ unsigned int Shader::GetUniformLocation(const std::string& name) {
     if (uniformCache.find(name) == uniformCache.end()) {
         int location = glGetUniformLocation(rendererId, name.c_str());
         if (location == -1) {
-            std::cout << "Warning: Did not find uniform with name "<<name<<std::endl;
+            //std::cout << "Warning: Did not find uniform with name "<<name<<std::endl;
             return -1;
         } else {
             uniformCache[name] = location;

@@ -49,6 +49,26 @@ target_include_directories("glad" PRIVATE "${GLAD_DIR}/include")
 target_include_directories(Pipe3D_Playground PRIVATE "${GLAD_DIR}/include")
 target_link_libraries(Pipe3D_Playground "glad" "${CMAKE_DL_LIBS}")
 
+#IMGUI
+set(IMGUI "${VENDOR_DIR}/imgui")
+add_library("imgui" 
+    "${IMGUI}/imgui.cpp" 
+    "${IMGUI}/imgui_draw.cpp" 
+    "${IMGUI}/imgui_tables.cpp" 
+    "${IMGUI}/imgui_widgets.cpp" 
+    "${IMGUI}/backends/imgui_impl_opengl3.cpp" 
+    "${IMGUI}/backends/imgui_impl_glfw.cpp")
+    
+target_include_directories("imgui" PRIVATE "${GLAD_DIR}/include")
+target_include_directories("imgui" PRIVATE "${GLFW_DIR}/include")
+target_include_directories("imgui" PRIVATE "${IMGUI}")
+target_include_directories(Pipe3D_Playground PRIVATE "${IMGUI}")
+target_link_libraries(Pipe3D_Playground "imgui" "${CMAKE_DL_LIBS}")
+#target_link_libraries("glfw" "imgui" "${CMAKE_DL_LIBS}")
+#target_link_libraries("glad" "imgui" "${CMAKE_DL_LIBS}")
+target_link_libraries("imgui" "glfw" "${CMAKE_DL_LIBS}")
+target_link_libraries("imgui" "glad" "${CMAKE_DL_LIBS}")
+
 #GLM
 set(GLM_DIR "${VENDOR_DIR}/glm")
 add_subdirectory("${GLM_DIR}")

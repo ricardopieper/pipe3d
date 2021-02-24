@@ -1,0 +1,100 @@
+# Blender MTL File: 'ModelRenderLighting.blend'
+# Material Count: 8
+
+newmtl 4_+MTMChloe01cBody.MTMChloe01cBody_0.1_0_0
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.664537 0.466746 0.670215
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 1
+map_Kd TX_M_Chloe01D_Body_D.tga
+map_Bump TX_Chloe01_Body_N.tga
+map_d TX_M_Chloe01D_Body_D.tga
+
+newmtl 4_MTMChloeUnderwear01Hair_0.1_0_0
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.624126 0.793030 0.567204
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 1
+map_Kd TX_M_ChloeUnderwear01_Hair_D.tga
+map_Bump TX_M_ChloeUnderwear01_Hair_N.tga
+map_d TX_M_ChloeUnderwear01_Hair_D.tga
+
+newmtl 5_CHMChloe02EP4_0.1_0_0
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.635963 0.422582 0.787094
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 1
+map_Kd TX_M_Chloe01D_Body_Tshirt.tga
+map_d TX_M_Chloe01D_Body_Tshirt.tga
+
+newmtl 5_CHMChloe02EP_0.1_0_0
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.628054 0.626848 0.468209
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 1
+map_Kd TX_M_Chloe01D_Body_Tshirt.tga
+map_d TX_M_Chloe01D_Body_Tshirt.tga
+
+newmtl 5_MTMChloe02Head_0.1_0_0
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.766397 0.475828 0.512610
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 1
+map_Kd TX_M_Chloe02_Head_D.tga
+map_d TX_M_Chloe02_Head_D.tga
+
+newmtl 5_MTMChloeVeste01DOnOff_0.1_0_0
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.546977 0.629434 0.644991
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 1
+map_Kd TX_M_Chloe01D_Body_Tshirt.tga
+map_d TX_M_Chloe01D_Body_Tshirt.tga
+
+newmtl 5_material0_0.9_0_0
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.753775 0.608787 0.787870
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 1
+map_Kd TX_M_Chloe02_Head_D.tga
+map_d TX_M_Chloe02_Head_D.tga
+
+newmtl 5_material5_0.1_0_0
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.688217 0.665576 0.632634
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 1
+map_Kd TX_Max01_EyeLashes.tga
+map_d TX_Max01_EyeLashes.tga

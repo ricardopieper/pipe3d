@@ -7,52 +7,120 @@
 #include "Texture.h"
 #include <memory>
 
+struct SceneObjectBuffer {
+    VertexArray vertexArray;
+    VertexBuffer vertexBuffer;
+    IndexBuffer indexBuffer;
+    Shader shader;
+    Texture texture;
+    Texture specularHighlight;
+    Texture normalMap;
+    Material material;
+    SceneObjectBuffer(VertexArray vertexArray, VertexBuffer vertexBuffer, IndexBuffer indexBuffer, 
+                      Shader shader, Texture texture, Texture specularHighlight,Texture normalMap,
+                      Material material):
+        vertexArray(vertexArray), vertexBuffer(vertexBuffer), indexBuffer(indexBuffer),
+        shader(shader), texture(texture), specularHighlight(specularHighlight),
+        normalMap(normalMap), material(material) { }
+};
+
+struct ModelToRender {
+    Geometry geometry;
+    Material material;
+    Shader shader;
+    Texture texture;
+    Texture normalMap;
+    Texture specularHighlight;
+    ModelToRender(Geometry geometry, Material material, Shader shader, 
+        Texture texture, Texture specularHighlight, Texture normalMap):
+        geometry(geometry), shader(shader), texture(texture), 
+        material(material), specularHighlight(specularHighlight), normalMap(normalMap) { }
+};
+
+struct LightProperties {
+    glm::vec3 Ambient;
+    glm::vec3 Diffuse;
+    glm::vec3 Specular;
+    bool Enabled;
+};
+
 class SceneObject {
 public:
-    VertexArray _VertexArray;
-    VertexBuffer _VertexBuffer;
-    IndexBuffer _IndexBuffer;
-    Shader _Shader;
-    Texture _Texture;
+
+    std::vector<SceneObjectBuffer> SceneObjectBuffers;
+    LightProperties Light;
 
     glm::vec3 Translation;
     glm::vec3 Scale;
+    glm::vec3 Rotation;
 
-    SceneObject(VertexArray va, VertexBuffer vb, 
-                IndexBuffer ib, Shader shader, Texture texture): 
-        _VertexArray(va), _VertexBuffer(vb), _IndexBuffer(ib), 
-        _Shader(shader), _Texture(texture) {
+    SceneObject(std::vector<SceneObjectBuffer> sceneObjectBuffers, LightProperties light) : SceneObjectBuffers(sceneObjectBuffers), Light(light)
+    {
         Translation = glm::vec3(0.0f);
-        Scale = glm::vec3(1,1,1);
+        Scale = glm::vec3(1.0f);
+        Rotation = glm::vec3(0.0f);
     }
-    
 };
 
 class Scene {
 public:
+
     std::vector<std::shared_ptr<SceneObject>> SceneObjects;
 
-    std::shared_ptr<SceneObject> FromGeometry(Geometry* geo, Shader shader, Texture texture) {
+    std::shared_ptr<SceneObject> FromGeometry(Geometry geo, Material material, Shader shader, 
+        Texture texture, Texture specularHighlights, Texture normalMap) {
         VertexArray va;
-        VertexBuffer vb = geo->GetVertexBuffer();
-        IndexBuffer ib = geo->GetIndexBuffer();
+        VertexBuffer vb = geo.GetVertexBuffer();
+        IndexBuffer ib = geo.GetIndexBuffer();
+
+        std::vector<SceneObjectBuffer> geometry;
+        auto obj = SceneObjectBuffer(
+            va, vb, ib, shader, texture, specularHighlights, normalMap, material
+        );
+
+        geometry.push_back(obj);
+        LightProperties light;
+        light.Enabled = false;
+        auto ptr = std::make_shared<SceneObject>(geometry, light);
+        SceneObjects.push_back(ptr);
+        return ptr;
+    }
+
+    std::shared_ptr<SceneObject> FromMeshes(std::vector<ModelToRender> renderableObjects) {
+        std::vector<SceneObjectBuffer> allMeshes;
+
+        for (auto obj: renderableObjects) {
+            VertexArray va;
+            VertexBuffer vb = obj.geometry.GetVertexBuffer();
+            IndexBuffer ib = obj.geometry.GetIndexBuffer();
         
-        auto ptr = std::make_shared<SceneObject>(va, vb, ib, shader, texture);
+            auto mesh = SceneObjectBuffer(
+                va, vb, ib, obj.shader, obj.texture, obj.specularHighlight,
+                obj.normalMap, obj.material
+            );
+            allMeshes.push_back(mesh);
+        }  
+        
+        LightProperties light;
+        light.Enabled = false;
+        
+        auto ptr = std::make_shared<SceneObject>(allMeshes, light);
         SceneObjects.push_back(ptr);
         return ptr;
     }
 
     ~Scene() {
         for (auto objptr : SceneObjects) {
-            auto obj = *objptr;
-            obj._VertexArray.Unbind();
-            obj._VertexArray.Dispose();
+            for (auto renderable: objptr->SceneObjectBuffers) {
+                renderable.vertexArray.Unbind();
+                renderable.vertexArray.Dispose();
 
-            obj._IndexBuffer.Unbind();
-            obj._IndexBuffer.Dispose();
-            
-            obj._VertexBuffer.Unbind();
-            obj._VertexBuffer.Dispose();
+                renderable.indexBuffer.Unbind();
+                renderable.indexBuffer.Dispose();
+                
+                renderable.vertexBuffer.Unbind();
+                renderable.vertexBuffer.Dispose();
+            }
         }
     }
 };

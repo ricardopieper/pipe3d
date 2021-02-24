@@ -1,0 +1,121 @@
+#version 450 core
+
+layout(location = 0) out vec4 color;
+
+struct Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+};
+
+struct Light {
+    vec3 direction;
+    vec3 diffuse;
+    vec3 specular;
+    vec3 ambient;
+};
+
+in vec3 fragmentColor;
+in vec3 fragmentNormal;
+in vec3 fragPosition;
+in vec2 fragmentUv;
+
+uniform Material material;
+uniform Light light;
+
+uniform vec3 cameraPosition;
+uniform float alphaDiscard;
+
+uniform vec2 u_colorSource;
+uniform sampler2D textureSampler;
+uniform sampler2D specularSampler;
+uniform sampler2D normalSampler;
+
+
+vec4 getAmbientColor() {
+    float fromVertexColor = u_colorSource.x;
+    float fromTextureColor = u_colorSource.y;
+
+    vec4 fragVertexColor = fromVertexColor * vec4(fragmentColor, 1);
+    vec4 fragTextureColor = fromTextureColor * texture(textureSampler, fragmentUv);
+
+    //vec4 calculatedFragColor = vec4(fragmentColor, 1);
+    vec4 calculatedFragColor = fragVertexColor + fragTextureColor;
+    return calculatedFragColor;
+}
+
+vec4 trySample(vec4 sampled, vec3 option) {
+    //return vec4(option, 1);
+    if (length(sampled) > 0) {
+        return sampled;
+    } else {
+        return vec4(option, 1);
+    }
+}
+float near = 0.1; 
+float far  = 100.0;
+float LinearizeDepth(float depth) 
+{
+    float z = depth * 2.0 - 1.0; // back to NDC 
+    return (2.0 * near * far) / (far + near - z * (far - near));	
+}
+
+
+void main() {
+    vec4 calculatedFragColor = getAmbientColor();
+    if (calculatedFragColor.a < alphaDiscard) discard;
+
+    vec4 ambientLight = vec4(light.ambient, 1) * calculatedFragColor;
+
+    //@TODO Bump mapping
+    vec3 fragPosBumped = fragPosition;
+
+    //a vector pointing towards the location where the light hits
+    vec3 lightToSurface = normalize(light.direction - fragPosBumped);
+    vec3 normal = normalize(fragmentNormal + (texture(normalSampler, fragmentUv).xyz - 0.584)); //ensure normal is actually normal
+    float lightAngle = dot(normal, lightToSurface);
+    float diffusion = max(lightAngle, 0.0);
+    vec4 diffuseColor = calculatedFragColor;
+
+    vec4 diffuse =   diffusion * vec4(light.diffuse, 1) * diffuseColor;
+
+    //compute the vector that points from fragPosBumped towards the camera
+    vec3 cameraToSurface = normalize(cameraPosition - fragPosBumped);
+
+    //we need a vector that points towards the light source
+    vec3 surfaceToLight = -lightToSurface;
+
+    //imagine a ray of light hitting the surface at an angle.
+    //Specifically, suppose the light is hitting at fragPosBumped
+    //(though fragPosBumped is being interpolated as usual)
+    //the normal is perpendicular to the surface. If we imagine
+    //a surface with a face pointing upwards, the normal is a vector
+    //that indicates the "pointing upwards" part (vec(0,1,0)). 
+    //we reflect this ray light along the normal, so now we have
+    //a ray pointing to the other side.
+    //This is the R vector in this image: 
+    //https://learnopengl.com/img/lighting/basic_lighting_specular_theory.png  
+    vec3 lightReflection = reflect(surfaceToLight, normal);
+
+    //the smaller the angle, the more light hits the camera
+    float angleFromCameraToReflection = dot(cameraToSurface, lightReflection);
+   
+    //negatives have no meaning here
+    angleFromCameraToReflection = max(angleFromCameraToReflection, 0);
+    vec4 actualSpecularLight = vec4(light.specular * float(int(material.shininess > 0)), 1);
+    vec4 specularHighlight = trySample(texture(specularSampler, fragmentUv), material.specular);
+    float specularFactor = pow(angleFromCameraToReflection, max(material.shininess, 1));
+    vec4 specular = actualSpecularLight * specularFactor * specularHighlight;
+
+    float dist = pow(distance(light.direction, fragPosBumped), 2);
+
+    //all lights
+    vec4 colorResult = ambientLight + (diffuse / dist) + (specular / dist) ;
+    //vec4 colorResult = vec4(specularFactor,specularFactor,specularFactor,1);
+    //vec4 colorResult = vec4(fragPosBumped, 1);
+
+    //distance from light to point
+
+    color = colorResult;
+}

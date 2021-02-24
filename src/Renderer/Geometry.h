@@ -6,21 +6,36 @@
 #include "VertexBuffer.h"
 #include "IndexBuffer.h"
 
+struct Material {
+    glm::vec3 ambient;
+    glm::vec3 diffuse;
+    glm::vec3 specular;
+    float shininess;
 
+    static Material DefaultMaterial() {
+        return DefaultColoredMaterial(glm::vec3(1.0));
+    }
+
+   static Material DefaultColoredMaterial(glm::vec3 rgbColor) {
+        Material m;
+        m.ambient = rgbColor;
+        m.diffuse = rgbColor;
+        m.specular = glm::vec3(0.0f);
+        m.shininess = 0;
+        return m;
+    }
+
+};
 
 struct Vertex {
-    float x, y, z; //position
-    float r, g, b; //color
-    float nx, ny, nz; //normal
-    float tex_u, tex_v; //uv
-    float specularStrength;     
-    Vertex(glm::vec3 xyz, glm::vec3 rgb, glm::vec3 normal,  
-           glm::vec2 uv, float specularStrength): 
-        x(xyz.x), y(xyz.y), z(xyz.z), 
-        r(rgb.r), g(rgb.g), b(rgb.b),
-        nx(normal.x), ny(normal.y), nz(normal.z),
-        tex_u(uv.x), tex_v(uv.y),
-        specularStrength(specularStrength) {}
+    glm::vec3 position; //position
+    glm::vec3 color; //color
+    glm::vec3 normal; //position
+    glm::vec2 uv; //uv  
+    Vertex(glm::vec3 position, glm::vec3 color, glm::vec3 normal,  
+           glm::vec2 uv): 
+        position(position), color(color), normal(normal),
+        uv(uv) {}
 };
 
 struct Geometry {

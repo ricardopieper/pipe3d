@@ -25,8 +25,7 @@ void VertexArray::AddBufferAndBind(VertexBuffer& vb) {
     layout.PushFloat(3); //color
     layout.PushFloat(3); //normal
     layout.PushFloat(2); //uv
-    layout.PushFloat(1); //specular
-
+    
     Bind();
     vb.Bind();
     auto elems = layout.GetElements();
