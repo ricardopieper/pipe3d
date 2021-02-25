@@ -53,14 +53,6 @@ vec4 trySample(vec4 sampled, vec3 option) {
         return vec4(option, 1);
     }
 }
-float near = 0.1; 
-float far  = 100.0;
-float LinearizeDepth(float depth) 
-{
-    float z = depth * 2.0 - 1.0; // back to NDC 
-    return (2.0 * near * far) / (far + near - z * (far - near));	
-}
-
 
 void main() {
     vec4 calculatedFragColor = getAmbientColor();
@@ -114,6 +106,7 @@ void main() {
     vec4 colorResult = ambientLight + (diffuse / dist) + (specular / dist) ;
     //vec4 colorResult = vec4(specularFactor,specularFactor,specularFactor,1);
     //vec4 colorResult = vec4(fragPosBumped, 1);
+
 
     //distance from light to point
 

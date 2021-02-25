@@ -161,8 +161,8 @@ int main()
         defaultShader.CompileShader();
         defaultShader.ListenChanges();
 
-        Shader lightBlockShader("./assets/shaders/White.vertex", "./assets/shaders/White.fragment");
-        lightBlockShader.CompileShader();
+        Shader singleColorShader("./assets/shaders/SingleColor.vertex", "./assets/shaders/SingleColor.fragment");
+        singleColorShader.CompileShader();
 
         Scene scene;
 
@@ -183,14 +183,16 @@ int main()
             "./assets/models/lightcube/lightcube.mtl");
        
         Geometry cubeGeometry = wavefrontCube[0].ConvertToGeometry();
-        auto lightSource = scene.FromGeometry(cubeGeometry, Material::DefaultMaterial(), 
-            lightBlockShader, Texture(""), Texture(""), Texture(""));
+        auto lightSource = scene.FromGeometry(
+            cubeGeometry, Material::DefaultMaterial(), 
+            singleColorShader, Texture(""), Texture(""), Texture(""));
         lightSource->Translation = glm::vec3(0.0f);
         lightSource->Scale = glm::vec3(0.1);
         lightSource->Light.Enabled = true;
         lightSource->Light.Ambient = glm::vec3(0.05);
         lightSource->Light.Diffuse = glm::vec3(0.3);
         lightSource->Light.Specular = glm::vec3(1.0);
+        lightSource->Outlined = true;
 
         auto sponzaWavefront = WavefrontMeshLoader::Load(
             "./assets/models/sponza/sponza.obj", 
@@ -235,10 +237,11 @@ int main()
         chloe->Translation = glm::vec3(-1.0, 0.0, 0.0);
         chloe->Scale = glm::vec3(1.16);
         chloe->Rotation = glm::vec3(0, glm::radians(90.0f), 0);
-
+        
         auto donut = WavefrontMeshLoader::Load(
             "./assets/models/donut/donut3.obj", 
             "./assets/models/donut/donut3.mtl");
+        
         
         for (auto wavefrontObj : donut) {
             if (wavefrontObj.meshName == "Cube") continue;
@@ -248,23 +251,30 @@ int main()
             obj->Translation = glm::vec3(0.3, 0.0, 0.3);
         }
 
-       
-
         //glFrontFace(GL_CW);
         glEnable(GL_FRAMEBUFFER_SRGB);
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); //wireframe or normal rendering
         
+        //Blending
+        //glEnable(GL_BLEND);
+        //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
+
+        //Stencil test
+        glEnable(GL_STENCIL_TEST);
+
+        //Face culling
         glEnable(GL_CULL_FACE);  
         glCullFace(GL_BACK);
 
+        //MSAA
         glEnable(GL_MULTISAMPLE);  
 
         float speed = 3.0f; // 3 units / second
         float mouseSpeed = 0.045f;
         double lastTime = glfwGetTime();
-  
 
         glfwSetWindowUserPointer(window, &perspectiveProjection);
 
@@ -274,7 +284,7 @@ int main()
         });
         double lastXpos, lastYpos;
         
-        Renderer renderer;
+        Renderer renderer(window, singleColorShader);
         bool freeCameraMovementMouse = false;
         float cameraFlyMovement = 4;
         float pi = 3.1415;
@@ -397,7 +407,7 @@ int main()
             ImGui::DragFloat3("Ambient Light", (float*)&lightSource->Light.Ambient, 0.01, 0, 1);
             ImGui::DragFloat3("Diffuse Light", (float*)&lightSource->Light.Diffuse, 0.01, 0, 1);
             ImGui::DragFloat3("Specular Light", (float*)&lightSource->Light.Specular, 0.01, 0, 1);
-            ImGui::Checkbox("Specular Light", (bool*)&lightSource->Light.Enabled);
+            ImGui::Checkbox("Enable light", (bool*)&lightSource->Light.Enabled);
             ImGui::End();
 
             ImGui::Begin("Camera and Editor");
@@ -407,6 +417,7 @@ int main()
             ImGui::RadioButton("Show cursor", &glfwCursorState, GLFW_CURSOR_NORMAL);
             ImGui::RadioButton("Hidden cursor", &glfwCursorState, GLFW_CURSOR_HIDDEN);
             ImGui::RadioButton("Disable cursor", &glfwCursorState, GLFW_CURSOR_DISABLED);
+            ImGui::Checkbox("Debug rendering", &renderer.debugRendering);
             ImGui::Text("Performance: %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
 

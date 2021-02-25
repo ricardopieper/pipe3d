@@ -6,6 +6,7 @@
 #include "IndexBuffer.h"
 #include "Texture.h"
 #include <memory>
+#include <map>
 
 struct SceneObjectBuffer {
     VertexArray vertexArray;
@@ -54,11 +55,14 @@ public:
     glm::vec3 Scale;
     glm::vec3 Rotation;
 
+    bool Outlined;
+
     SceneObject(std::vector<SceneObjectBuffer> sceneObjectBuffers, LightProperties light) : SceneObjectBuffers(sceneObjectBuffers), Light(light)
     {
         Translation = glm::vec3(0.0f);
         Scale = glm::vec3(1.0f);
         Rotation = glm::vec3(0.0f);
+        Outlined = false;
     }
 };
 
