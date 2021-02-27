@@ -6,18 +6,28 @@
 #include "Camera3D.h"
 #include <GLFW/glfw3.h>
 
+struct GlobalSettings {
+    bool debugMode = false;
+};
+
+static GlobalSettings RenderingGlobalSettings;
+
 class Renderer {
 public:
 
-    Camera3D* Camera;
-    Shader& OutlineShader;
+    std::shared_ptr<Shader> OutlineShader;
+    BufferLayout vertexBufferLayout;
     GLFWwindow* window;
-    bool debugRendering;
 
-    Renderer(GLFWwindow* window, Shader& outlineShader): window(window), OutlineShader(outlineShader) {
-        debugRendering = false;
+    Renderer(GLFWwindow* window, std::shared_ptr<Shader> outlineShader): window(window), OutlineShader(outlineShader) {
+        BufferLayout layout;
+        layout.PushFloat(3); //position
+        layout.PushFloat(3); //color
+        layout.PushFloat(3); //normal
+        layout.PushFloat(2); //uv
+        this->vertexBufferLayout = layout;
     }
 
     void Clear();
-    void Render(Scene& scene, Camera3D& camera, glm::mat4 projectionMatrix);
+    void Render(Scene& scene, Camera3D& camera, glm::mat4& projectionMatrix);
 };

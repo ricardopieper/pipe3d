@@ -62,9 +62,6 @@ Shader::Shader(const std::string& vertex, const std::string& fragment): vertexPa
     rendererId = glCreateProgram();
 }
 
-Shader::~Shader() {
-}
-
 void Shader::Reload() {
     uniformCache.clear();
     Unbind();

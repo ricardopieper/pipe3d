@@ -9,7 +9,7 @@ private:
 public:
     VertexArray();
     void Dispose() const;
-    void AddBufferAndBind(VertexBuffer& vb);
+    void AddBufferAndBind(VertexBuffer& vb, BufferLayout& layout);
     void Bind() const;
     void Unbind() const;
 };

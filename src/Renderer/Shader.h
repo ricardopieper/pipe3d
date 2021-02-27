@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include <thread>
 #include <vector>
+
 class Shader {
 private:
     unsigned int rendererId;
@@ -16,7 +17,6 @@ public:
     bool Changed = false;
     bool IsDefault = false;
     Shader(const std::string& vertex, const std::string& fragment);
-    ~Shader();
 
     void Bind() const;
     void Unbind() const;

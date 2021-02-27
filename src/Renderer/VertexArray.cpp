@@ -18,14 +18,8 @@ void VertexArray::Unbind() const {
     glBindVertexArray(0);
 }
 
-void VertexArray::AddBufferAndBind(VertexBuffer& vb) {
-    
-    BufferLayout layout;
-    layout.PushFloat(3); //position
-    layout.PushFloat(3); //color
-    layout.PushFloat(3); //normal
-    layout.PushFloat(2); //uv
-    
+void VertexArray::AddBufferAndBind(VertexBuffer& vb, BufferLayout& layout) {
+
     Bind();
     vb.Bind();
     auto elems = layout.GetElements();

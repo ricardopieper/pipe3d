@@ -13,11 +13,12 @@ out vec3 fragmentColor;
 out vec3 fragmentNormal;
 out vec3 fragPosition;
 out vec2 fragmentUv;
+out vec3 normalMatrix;
 
 void main() {
     fragPosition = vec3(u_model * vec4(position, 1));
     gl_Position = u_projection * u_view * u_model * vec4(position, 1);
     fragmentColor = vertexColor;
-    fragmentNormal = vertexNormal;
+    fragmentNormal = mat3(transpose(inverse(u_model))) * vertexNormal;
     fragmentUv = uv;
 }

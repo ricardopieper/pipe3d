@@ -12,29 +12,28 @@ struct SceneObjectBuffer {
     VertexArray vertexArray;
     VertexBuffer vertexBuffer;
     IndexBuffer indexBuffer;
-    Shader shader;
+    std::shared_ptr<Shader> shader;
     Texture texture;
     Texture specularHighlight;
     Texture normalMap;
     Material material;
     SceneObjectBuffer(VertexArray vertexArray, VertexBuffer vertexBuffer, IndexBuffer indexBuffer, 
-                      Shader shader, Texture texture, Texture specularHighlight,Texture normalMap,
+                      std::shared_ptr<Shader> shader, Texture texture, Texture specularHighlight,Texture normalMap,
                       Material material):
-        vertexArray(vertexArray), vertexBuffer(vertexBuffer), indexBuffer(indexBuffer),
-        shader(shader), texture(texture), specularHighlight(specularHighlight),
+        vertexArray(vertexArray), vertexBuffer(vertexBuffer), indexBuffer(indexBuffer), shader(shader),
+        texture(texture), specularHighlight(specularHighlight),
         normalMap(normalMap), material(material) { }
 };
 
 struct ModelToRender {
     Geometry geometry;
     Material material;
-    Shader shader;
+    std::shared_ptr<Shader> shader;
     Texture texture;
     Texture normalMap;
     Texture specularHighlight;
-    ModelToRender(Geometry geometry, Material material, Shader shader, 
-        Texture texture, Texture specularHighlight, Texture normalMap):
-        geometry(geometry), shader(shader), texture(texture), 
+    ModelToRender(Geometry geometry, Material material, std::shared_ptr<Shader> shader, Texture texture, Texture specularHighlight, Texture normalMap):
+        geometry(geometry), texture(texture), shader(shader),
         material(material), specularHighlight(specularHighlight), normalMap(normalMap) { }
 };
 
@@ -42,7 +41,11 @@ struct LightProperties {
     glm::vec3 Ambient;
     glm::vec3 Diffuse;
     glm::vec3 Specular;
-    bool Enabled;
+    float Constant;
+    float Linear;
+    float Quadratic;
+    bool IsDirectional;
+    bool IsPoint;
 };
 
 class SceneObject {
@@ -57,7 +60,8 @@ public:
 
     bool Outlined;
 
-    SceneObject(std::vector<SceneObjectBuffer> sceneObjectBuffers, LightProperties light) : SceneObjectBuffers(sceneObjectBuffers), Light(light)
+    SceneObject(std::vector<SceneObjectBuffer> sceneObjectBuffers, LightProperties light): 
+        SceneObjectBuffers(sceneObjectBuffers), Light(light)
     {
         Translation = glm::vec3(0.0f);
         Scale = glm::vec3(1.0f);
@@ -71,7 +75,7 @@ public:
 
     std::vector<std::shared_ptr<SceneObject>> SceneObjects;
 
-    std::shared_ptr<SceneObject> FromGeometry(Geometry geo, Material material, Shader shader, 
+    std::shared_ptr<SceneObject> FromGeometry(Geometry geo, Material material, std::shared_ptr<Shader> shader, 
         Texture texture, Texture specularHighlights, Texture normalMap) {
         VertexArray va;
         VertexBuffer vb = geo.GetVertexBuffer();
@@ -84,7 +88,8 @@ public:
 
         geometry.push_back(obj);
         LightProperties light;
-        light.Enabled = false;
+        light.IsDirectional = false;
+        light.IsPoint = false;
         auto ptr = std::make_shared<SceneObject>(geometry, light);
         SceneObjects.push_back(ptr);
         return ptr;
@@ -106,7 +111,8 @@ public:
         }  
         
         LightProperties light;
-        light.Enabled = false;
+        light.IsDirectional = false;
+        light.IsPoint = false;
         
         auto ptr = std::make_shared<SceneObject>(allMeshes, light);
         SceneObjects.push_back(ptr);
