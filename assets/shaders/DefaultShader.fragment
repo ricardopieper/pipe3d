@@ -26,6 +26,7 @@ in vec3 fragmentColor;
 in vec3 fragmentNormal;
 in vec3 fragPosition;
 in vec2 fragmentUv;
+in vec4 fragmentPosLight;
 
 uniform Material material;
 
@@ -39,12 +40,19 @@ uniform Light pointLights[NR_POINT_LIGHTS];
 
 uniform vec3 cameraPosition;
 uniform float alphaDiscard;
-
 uniform vec2 u_colorSource;
-uniform sampler2D textureSampler;
-uniform sampler2D specularSampler;
-uniform sampler2D normalSampler;
 
+uniform float reflectivity;
+uniform float refractivity;
+uniform float refractionRatio;
+
+
+layout (binding = 0) uniform sampler2D textureSampler;
+layout (binding = 1) uniform sampler2D specularSampler;
+layout (binding = 2) uniform sampler2D normalSampler;
+layout (binding = 3) uniform sampler2D reflexSampler;
+layout (binding = 4) uniform sampler2D shadowMap;
+layout (binding = 5) uniform samplerCube skybox;
 
 vec4 getAmbientColor() {
     float fromVertexColor = u_colorSource.x;
@@ -67,61 +75,192 @@ vec4 trySample(vec4 sampled, vec3 option) {
     }
 }
 
-vec3 ComputeLight(Light light, float attenuation, 
-   vec3 fragColor, vec3 normal, vec3 fragPosBumped, vec3 cameraToSurface, vec3 lightDir) {
-   
+vec2 poissonDisk[16] = vec2[]( 
+   vec2( -0.94201624, -0.39906216 ), 
+   vec2( 0.94558609, -0.76890725 ), 
+   vec2( -0.094184101, -0.92938870 ), 
+   vec2( 0.34495938, 0.29387760 ), 
+   vec2( -0.91588581, 0.45771432 ), 
+   vec2( -0.81544232, -0.87912464 ), 
+   vec2( -0.38277543, 0.27676845 ), 
+   vec2( 0.97484398, 0.75648379 ), 
+   vec2( 0.44323325, -0.97511554 ), 
+   vec2( 0.53742981, -0.47373420 ), 
+   vec2( -0.26496911, -0.41893023 ), 
+   vec2( 0.79197514, 0.19090188 ), 
+   vec2( -0.24188840, 0.99706507 ), 
+   vec2( -0.81409955, 0.91437590 ), 
+   vec2( 0.19984126, 0.78641367 ), 
+   vec2( 0.14383161, -0.14100790 ) 
+);
+
+/*
+notice that gl_FragPos and fragmentPosLight refer to the same vertex in worldspace, but in 2 different projections.
+gl_FragPos is the vertex from the camera's perspective
+fragmentPosLight is the same vertex from the light's perspective
+
+*/
+
+//fragmentPosLight
+float ComputeShadow(vec4 lightFrag, vec3 normal, vec3 lightDir) {
+    //first perform perspective division
+    vec3 projCoords = lightFrag.xyz / lightFrag.w;
+
+    //projCoords is in clip space on range [-1, 1], but the texture coordinates in the shadow map
+    //is in range [0, 1]. 
+    //Notice that the light space includes projection to put vertices flat on the screen
+    projCoords = projCoords * 0.5 + 0.5; //First, bring to [-0.5, 0.5], then [0, 1]:
+
+    //this is the depth closest to the light, taken from the shadow map
+    float closestDepth = texture(shadowMap, projCoords.xy).r;
+
+    //do not confuse projCoords with shadowMap. *every* vertex passes through the shaders, doesn't matter if they are
+    //occluded or not. projCooords is just the vertex position *from the light's perspective*.
+    //Avoid thinking in terms of "as seen from the light", because the light doesn't *see* it, as it's ocluded.
+    //This is what the code here is trying to prove
+    float currentDepth = projCoords.z;
+    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+    //texelSize *= 0.8;
+    int neighbors = 2;
+    float pcf = 0.0;
+    int samplesTaken = 0;
+    float bias = max(0.0005 * (1.0 - dot(normal, lightDir)), 0.00005);  
+
+    for (int i = -neighbors; i <= neighbors; i++) {
+         for (int j = -neighbors; j <= neighbors; j++) {
+            vec2 xy = projCoords.xy + vec2(float(i), float(j)) * texelSize;
+            float samplePcf = texture(shadowMap, xy).r;
+            pcf += currentDepth - bias > samplePcf ? 1.0 : 0.0; 
+            samplesTaken++;
+        }   
+    }
+    
+    pcf /= samplesTaken;
+    int poissonSamples = 16;
+    float visibility = 1;
+    float reduction = 0.8 / float(poissonSamples);
+    for (int i=0; i<poissonSamples; i++){
+        float samplePoisson = texture(shadowMap, projCoords.xy + poissonDisk[i] / textureSize(shadowMap, 0)).r;
+        if (samplePoisson > currentDepth - bias){
+            visibility -= reduction;
+        }
+    }
+
+    //float singleSample = texture(shadowMap, projCoords.xy).r;
+    //singleSample = currentDepth - bias > singleSample ? 1.0 : 0.0; 
+          
+    pcf *= visibility;
+
+//    float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;  
+
+    return pcf;   
+}
+
+vec4 ComputeLight(Light light, float attenuation, 
+   vec4 fragColor, vec3 normal, vec3 fragPosBumped, 
+   vec3 cameraToSurface, vec3 lightDir) {
+    
+    float shadow = ComputeShadow(fragmentPosLight, normal, lightDir);
     //ambient    
-    vec3 ambient = light.ambient * fragColor;
+    vec4 ambient = vec4(light.ambient, 1) * fragColor;
     
     //diffuse
     float lightAngle = dot(normal, lightDir);
     float diffusion = max(lightAngle, 0.0);
-    vec3 diffuse = diffusion * light.diffuse * fragColor;
-   
-    //specular
-    vec3 surfaceToLight = -lightDir;
-    vec3 lightReflection = reflect(surfaceToLight, normal); //https://learnopengl.com/img/lighting/basic_lighting_specular_theory.png
-    //the smaller the angle, the more light hits the camera
-    float angleFromCameraToReflection = max(dot(cameraToSurface, lightReflection), 0);
-    vec3 actualSpecularLight = light.specular * float(int(material.shininess > 0));
-    vec3 specularHighlight = vec3(trySample(texture(specularSampler, fragmentUv), material.specular));
-    float specularFactor = pow(angleFromCameraToReflection, max(material.shininess, 1));
-    vec3 specular = actualSpecularLight * specularFactor * specularHighlight;
+    vec4 diffuse = vec4(light.diffuse, 1) * diffusion * fragColor;
+    diffuse.a = fragColor.a;
 
-    return ambient + diffuse * attenuation + specular * attenuation;
+    bool bling = true;
+    float angleFromCameraToReflection = 0;
+    //specular
+    if (bling) {
+        vec3 halfwayDir = normalize(lightDir + cameraToSurface);
+        angleFromCameraToReflection = max(dot(normal, halfwayDir), 0);
+    } else {
+        vec3 surfaceToLight = -lightDir;
+        vec3 reflectDir = reflect(surfaceToLight, normal);
+        angleFromCameraToReflection = max(dot(cameraToSurface, reflectDir), 0);
+    }
+    // //https://learnopengl.com/img/lighting/basic_lighting_specular_theory.png
+
+    vec3 actualSpecularLight = light.specular * float(int(material.shininess > 0));
+    vec3 specularHighlight = trySample(texture(specularSampler, fragmentUv), material.specular).rgb;
+    float specularFactor = pow(angleFromCameraToReflection, max(material.shininess / 8, 1));
+    vec4 specular = vec4(actualSpecularLight * specularFactor * specularHighlight, 1);
+
+    specular *= attenuation;
+    specular *= 1 - shadow;
+
+    diffuse *= attenuation;
+    diffuse *= 1 - shadow;
+
+    vec4 result = ambient + diffuse + specular;
+    result.a = fragColor.a;
+    return result;
 }
 
 void main() {
+
     vec4 calculatedFragColor = getAmbientColor();
-    if (calculatedFragColor.a < alphaDiscard) discard;
+    //if (calculatedFragColor.a < 0.5) discard;
+    calculatedFragColor = vec4(vec3(calculatedFragColor), 1);
+    
     //@TODO Bump mapping
     vec3 fragPosBumped = fragPosition;
 
     //compute the vector that points from fragPosBumped towards the camera
     //aka viewDir
     vec3 normal = normalize(fragmentNormal);
+
+
+   
+
     vec3 cameraToSurface = normalize(cameraPosition - fragPosBumped);
-    vec3 result = vec3(0,0,0);
+    vec4 result = vec4(0,0,0,0);
     for (int i = 0; i < numDirLights; i++) {
+       
         Light light = directionalLights[i];
+        float distance = 1;
         result += ComputeLight(
-            light, 1.0, calculatedFragColor.xyz,
+            light, distance, calculatedFragColor,
             normal, fragPosBumped, cameraToSurface,
-            normalize(-light.position)           
+            normalize(light.position - fragPosBumped)           
         );
     }
-    for (int i = 0; i < numPointLights; i++) {
+   for (int i = 0; i < numPointLights; i++) {
         Light light = pointLights[i];
         float distance = length(light.position - fragPosBumped);
         float attenuation = 1.0 / 
             (light.constant + (light.linear * distance) + (light.quadratic * (distance * distance)));
         result += ComputeLight(
-            light, attenuation, calculatedFragColor.xyz,
+            light, attenuation, calculatedFragColor,
             normal, fragPosBumped, cameraToSurface,
             normalize(light.position - fragPosBumped)
         );
     }
     
-    //distance from light to point
-    color = vec4(result, 1);
+    
+    //computing refraction/reflection
+    vec3 vreflectivity = texture(reflexSampler, fragmentUv).rgb;
+    vec3 I = normalize(fragPosition - cameraPosition);
+    if (length(vreflectivity) != 0.0 || reflectivity != 0) {
+        vec3 R = reflect(I, normalize(fragmentNormal));
+        vec4 skyboxTexture = texture(skybox, normalize(vec3(R.xy, -R.z)));
+        if (length(vreflectivity) != 0.0) {
+            skyboxTexture *= skyboxTexture;
+            result = result + length(vreflectivity) * skyboxTexture;
+        } else if (reflectivity != 0) {
+            skyboxTexture *= 0.5;
+            result = result * (1 - 0.5) + skyboxTexture;
+        }
+    } 
+    if (refractivity != 0.0) {
+        vec3 R = refract(I, normalize(fragmentNormal), refractionRatio);
+        vec4 skyboxTexture = texture(skybox, vec3(R.xy, -R.z)) * refractivity;
+        result = result * (1 - refractivity) + skyboxTexture;
+    }
+
+    color = result;
+    //color = fragmentPosLight;
+    //color = vec4(vec3(shadow), 1);
 }

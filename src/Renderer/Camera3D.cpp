@@ -9,13 +9,18 @@ glm::mat4 Camera3D::GetViewMatrix() {
     glm::vec3 right = getRight();
     glm::vec3 direction = getDirection();
     glm::vec3 up = glm::cross(right, direction);
+    return this->LookAt(this->Position + direction, up);
+};
+
+glm::mat4 Camera3D::LookAt(glm::vec3 at, glm::vec3 up) {
     glm::mat4 cameraLookAt = glm::lookAt(
         this->Position,
-        this->Position + direction,
+        at,
         up
     );
     return cameraLookAt;
 };
+
 
 glm::vec3 Camera3D::getDirection()
 {

@@ -27,9 +27,15 @@
 #include "Renderer/WindowData.h"
 #include "Renderer/RenderingPipeline.h"
 #include "Renderer/RenderingStages/MainStage.h"
+#include "Renderer/RenderingStages/MultisampledMainStage.h"
 #include "Renderer/RenderingStages/PostProcessingEffect.h"
 #include "Renderer/RenderingStages/FramebufferToScreen.h"
+#include "Renderer/RenderingStages/DirectionalShadowMapGeneration.h"
+#include "Renderer/RenderingStages/ShadowMapDebug.h"
 #include "Renderer/ShaderManager.h"
+#include "Renderer/CubemapTexture.h"
+#include "Renderer/MultisampledFramebuffer.h"
+#include "Renderer/Skybox.h"
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
@@ -167,9 +173,11 @@ int main()
 
     GLFWwindow *window = glfwCreateWindow(width, height, "Pipe3D Playground", NULL, NULL);
     glfwMakeContextCurrent(window);
+    glfwSwapInterval(1);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 
     glfwSetKeyCallback(window, quit);
+
     glfwSetErrorCallback(GLFWErrorCallback);
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GLFW_TRUE);
     int glfwCursorState = GLFW_CURSOR_NORMAL;
@@ -186,7 +194,6 @@ int main()
 
     ShaderManager shaderManager;
 
-    glfwSwapInterval(1);
     {
         int flags;
         glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
@@ -199,6 +206,7 @@ int main()
 
             glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
         }
+
 
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -213,16 +221,22 @@ int main()
         perspectiveProjection.SetCutoff(0.01, 10000);
 
         Camera3D camera;
-        camera.Position = glm::vec3(0, 0, 5);
+        camera.Position = glm::vec3(1.9613384, 1.83839011, 0.118167907);
+        camera.horizontalAngle = 4.7262249;
+        camera.verticalAngle = -0.542656064;
 
         auto framebufferShader = shaderManager.MakeNew("./assets/shaders/Framebuffer.vertex", "./assets/shaders/Framebuffer.fragment");
         auto singleColorShader = shaderManager.MakeNew("./assets/shaders/SingleColor.vertex", "./assets/shaders/SingleColor.fragment");
         auto defaultShader = shaderManager.MakeNew("./assets/shaders/DefaultShader.vertex", "./assets/shaders/DefaultShader.fragment");
+        auto skyboxShader = shaderManager.MakeNew("./assets/shaders/Skybox.vertex", "./assets/shaders/Skybox.fragment");
+        auto shadowMap = shaderManager.MakeNew("./assets/shaders/ShadowMap.vertex", "./assets/shaders/ShadowMap.fragment");
+        auto shadowMapDebug = shaderManager.MakeNew("./assets/shaders/Framebuffer.vertex", "./assets/shaders/FramebufferShadowMapDebug.fragment");
+        //auto envMappingTest = shaderManager.MakeNew("./assets/shaders/DefaultShader.vertex", "./assets/shaders/TestEnvMapping.fragment");
         defaultShader->IsDefault = true;
 
 
         Scene scene;
-    /*
+    
         auto oneMeterCubeModel = WavefrontMeshLoader::Load(
             "./assets/models/1mcube/1mcube.obj",
             "./assets/models/1mcube/1mcube.mtl");
@@ -232,50 +246,87 @@ int main()
             defaultShader,
             Texture(""),
             Texture(""),
-            Texture(""));*/
+            Texture(""),
+            Texture(""));
+        oneMeterCube->Translation.x = 2.2;
+        oneMeterCube->Translation.y = -0.07;
+        oneMeterCube->Translation.z = 0;
+        
+        for (auto& it: oneMeterCube->SceneObjectElements) { 
+            it.reflectivity = 0.7;
+        };
+
+        /*CubemapTexture cubemapTex(std::vector<std::string> {
+            "./assets/skyboxes/oceansky/right.jpg",
+            "./assets/skyboxes/oceansky/left.jpg",
+            "./assets/skyboxes/oceansky/top.jpg",
+            "./assets/skyboxes/oceansky/bottom.jpg",
+            "./assets/skyboxes/oceansky/front.jpg",
+            "./assets/skyboxes/oceansky/back.jpg"
+        });*/
+    
+        CubemapTexture cubemapTex(std::vector<std::string> {
+            /*  "./assets/skyboxes/oceansky/right.jpg",
+            "./assets/skyboxes/oceansky/left.jpg",
+            "./assets/skyboxes/oceansky/top.jpg",
+            "./assets/skyboxes/oceansky/bottom.jpg",
+            "./assets/skyboxes/oceansky/front.jpg",
+            "./assets/skyboxes/oceansky/back.jpg"*/
+            
+            "./assets/skyboxes/Yokohama3/posx.jpg",
+            "./assets/skyboxes/Yokohama3/negx.jpg",
+            "./assets/skyboxes/Yokohama3/posy.jpg",
+            "./assets/skyboxes/Yokohama3/negy.jpg",
+            "./assets/skyboxes/Yokohama3/posz.jpg",
+            "./assets/skyboxes/Yokohama3/negz.jpg"
+        });
+
+        Skybox skybox(cubemapTex, skyboxShader);
 
         auto wavefrontCube = WavefrontMeshLoader::Load(
             "./assets/models/lightcube/lightcube.obj",
             "./assets/models/lightcube/lightcube.mtl");
 
         Geometry cubeGeometry = wavefrontCube[0].ConvertToGeometry();
-        auto lightSource = scene.FromGeometry(
+        auto sun = scene.FromGeometry(
             cubeGeometry, Material::DefaultMaterial(),
-            defaultShader, Texture(""), Texture(""), Texture(""));
-        lightSource->Translation = glm::vec3(0.0f, 20, 0.0);
-        lightSource->Scale = glm::vec3(0.1);
-        lightSource->Light.IsDirectional = true;
-        lightSource->Light.Ambient = glm::vec3(0.05);
-        lightSource->Light.Diffuse = glm::vec3(0.1);
-        lightSource->Light.Specular = glm::vec3(0.3);
+            singleColorShader, Texture(""), Texture(""), Texture(""),Texture(""));
+        //sun->Translation = glm::vec3(4.8f, 6.3, 1.3);
+        sun->Translation = glm::vec3(0.0f, 20.0f, 0.0);
+        sun->Scale = glm::vec3(0.1);
+        sun->Light.IsDirectional = true;
+        sun->Light.Ambient = glm::vec3(0.005);
+        sun->Light.Diffuse = glm::vec3(0.1);
+        sun->Light.Specular = glm::vec3(0.0);
        // pointLight->Outlined = true;
 
         auto pointLight = scene.FromGeometry(
             cubeGeometry, Material::DefaultMaterial(),
-            singleColorShader, Texture(""), Texture(""), Texture(""));
+            singleColorShader, Texture(""), Texture(""), Texture(""), Texture(""));
         pointLight->Translation = glm::vec3(0.0f);
         pointLight->Scale = glm::vec3(0.1);
         pointLight->Light.IsPoint = true;
-        pointLight->Light.Ambient = glm::vec3(0.05);
-        pointLight->Light.Diffuse = glm::vec3(0.3);
-        pointLight->Light.Specular = glm::vec3(1.0);
+        pointLight->Light.Ambient = glm::vec3(0);
+        pointLight->Light.Diffuse = glm::vec3(0);
+        pointLight->Light.Specular = glm::vec3(0);
         pointLight->Light.Constant = 1;
-        pointLight->Light.Linear = 0.7;
-        pointLight->Light.Quadratic = 1.8;
-
+        pointLight->Light.Linear = 0.18;
+        pointLight->Light.Quadratic = 0.01;
 
         auto pointLight2 = scene.FromGeometry(
             cubeGeometry, Material::DefaultMaterial(),
-            singleColorShader, Texture(""), Texture(""), Texture(""));
+            singleColorShader, Texture(""), Texture(""), Texture(""),Texture(""));
         pointLight2->Translation = glm::vec3(1.0f, 0.0f, 1.0f);
         pointLight2->Scale = glm::vec3(0.1);
         pointLight2->Light.IsPoint = true;
-        pointLight2->Light.Ambient = glm::vec3(0.05);
-        pointLight2->Light.Diffuse = glm::vec3(0.3);
-        pointLight2->Light.Specular = glm::vec3(1.0);
+        pointLight2->Light.Ambient = glm::vec3(0.00);
+        pointLight2->Light.Diffuse = glm::vec3(0);
+        pointLight2->Light.Specular = glm::vec3(0);
         pointLight2->Light.Constant = 1;
         pointLight2->Light.Linear = 0.7;
         pointLight2->Light.Quadratic = 1.8;
+
+      
 
         auto sponzaWavefront = WavefrontMeshLoader::Load(
             "./assets/models/sponza/sponza.obj",
@@ -287,18 +338,39 @@ int main()
         {
             if (sponzaObj.meshName == "Cube_Cube_Material")
                 continue;
-            std::cout << "Loading object " << sponzaObj.meshName << std::endl;
+            std::cout << "Loading sponza object " << sponzaObj.meshName << std::endl;
             Geometry geom = sponzaObj.ConvertToGeometry();
             Material material = sponzaObj.GetMaterial();
             Texture tex = textureCache.GetTexture(sponzaObj.diffuseTexturePath);
-            Texture specularHighlights = textureCache.GetTexture(sponzaObj.specularTexturePath);
-            Texture normalMap = textureCache.GetTexture(sponzaObj.bumpTexturePath);
-            sponzaModel.emplace_back(geom, material, defaultShader, tex, specularHighlights, normalMap);
+            Texture specularHighlights = textureCache.GetTexture(sponzaObj.specularTexturePath, false);
+            Texture normalMap = textureCache.GetTexture(sponzaObj.bumpTexturePath, false);
+            sponzaModel.emplace_back(geom, material, defaultShader, tex, specularHighlights, normalMap, Texture(""));
         }
 
         auto sponza = scene.FromMeshes(sponzaModel);
-        sponza->Translation = glm::vec3(0.0f);
+        sponza->Translation = glm::vec3(0.0f, 0.0f, 0.0);
         sponza->Scale = glm::vec3(2.72f);
+
+        auto crysisGuyWavefront = WavefrontMeshLoader::Load(
+            "./assets/models/nanosuit_reflection/nanosuit.obj",
+            "./assets/models/nanosuit_reflection/nanosuit.mtl");
+
+        std::vector<ModelToRender> crysisGuyModel;
+        for (auto cryGuyPart : crysisGuyWavefront)
+        {
+            std::cout << "Loading crysis guy object " << cryGuyPart.meshName << std::endl;
+            Geometry geom = cryGuyPart.ConvertToGeometry();
+            Material material = cryGuyPart.GetMaterial();
+            Texture tex = textureCache.GetTexture("./assets/models/nanosuit_reflection/" + cryGuyPart.diffuseTexturePath);
+            Texture refl = textureCache.GetTexture("./assets/models/nanosuit_reflection/" + cryGuyPart.reflectivityTexturePath, false);
+            Texture specularHighlights = textureCache.GetTexture("./assets/models/nanosuit_reflection/" + cryGuyPart.specularTexturePath, false);
+            Texture normalMap = textureCache.GetTexture("./assets/models/nanosuit_reflection/" + cryGuyPart.bumpTexturePath, false);
+            crysisGuyModel.emplace_back(geom, material, defaultShader, tex, specularHighlights, normalMap, refl);
+        }
+
+        auto cryGuy = scene.FromMeshes(crysisGuyModel);
+        cryGuy->Translation = glm::vec3(0.0f, 0.0f, -1.3f);
+        cryGuy->Scale = glm::vec3(0.14);
 
         auto chloeWavefront = WavefrontMeshLoader::Load(
             "./assets/models/chloe-lis/0.obj",
@@ -307,7 +379,7 @@ int main()
         std::vector<ModelToRender> chloeModel;
         for (auto chloeObj : chloeWavefront)
         {
-            std::cout << "Loading object " << chloeObj.meshName << std::endl;
+            std::cout << "Loading chloe object " << chloeObj.meshName << std::endl;
             Geometry geom = chloeObj.ConvertToGeometry();
             Material material = chloeObj.GetMaterial();
 
@@ -316,14 +388,14 @@ int main()
             texPath = ReplaceString(texPath, "\\", "/");
 
             Texture tex = textureCache.GetTexture(texPath);
-            chloeModel.emplace_back(geom, material,defaultShader, tex, Texture(""), Texture(""));
+            auto& emplaced = chloeModel.emplace_back(geom, material, defaultShader, tex, Texture(""), Texture(""),  Texture(""));
+            //emplaced.reflectivity = 1.0;
         }
 
         auto chloe = scene.FromMeshes(chloeModel);
         chloe->Translation = glm::vec3(-1.0, 0.0, 0.0);
         chloe->Scale = glm::vec3(1.16);
         chloe->Rotation = glm::vec3(0, glm::radians(90.0f), 0);
-
        /* auto donut = WavefrontMeshLoader::Load(
             "./assets/models/donut/donut3.obj",
             "./assets/models/donut/donut3.mtl");
@@ -346,8 +418,8 @@ int main()
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); //wireframe or normal rendering
 
         //Blending
-        //glEnable(GL_BLEND);
-        //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         //Stencil test
         glEnable(GL_STENCIL_TEST);
@@ -359,17 +431,18 @@ int main()
         //MSAA
         glEnable(GL_MULTISAMPLE);
 
+
         float speed = 3.0f; // 3 units / second
         float mouseSpeed = 0.045f;
         double lastTime = glfwGetTime();
 
-        auto framebuffer = std::make_shared<Framebuffer>(framebufferShader);
+        auto framebuffer = std::make_shared<MultisampledFramebuffer>(framebufferShader);
         framebuffer->MakeFramebuffer(width, height);
         framebuffer->Unbind();
 
-        auto renderer = std::make_shared<Renderer>(window, singleColorShader);
+        auto renderer = std::make_shared<Renderer>(window, singleColorShader, skybox);
 
-        RenderingPipeline renderingPipeline;
+        RenderingPipeline renderingPipeline(width, height);
         auto invertColorEffect = shaderManager.MakeNew(
            "./assets/shaders/Framebuffer.vertex",
            "./assets/shaders/PostProcessingEffects/Inverter.fragment"
@@ -379,10 +452,15 @@ int main()
            "./assets/shaders/PostProcessingEffects/Kernel.fragment"
         );
         
-        renderingPipeline.AddStage(std::make_shared<MainRenderingStage>(framebuffer, renderer));
-        renderingPipeline.AddStage(std::make_shared<PostProcessingEffect>(width, height, invertColorEffect));
-        renderingPipeline.AddStage(std::make_shared<PostProcessingEffect>(width, height, kernelEffect));
-        renderingPipeline.AddStage(std::make_shared<FramebufferToScreen>(width, height));
+        //renderingPipeline.AddStage(std::make_shared<MainRenderingStage>(framebuffer, renderer));
+        renderingPipeline.AddStage(std::make_shared<DirectionalShadowMapGeneration>(shadowMap));
+       // renderingPipeline.AddStage(std::make_shared<ShadowMapDebug>(shadowMapDebug));
+        
+        renderingPipeline.AddStage(std::make_shared<MultisampledMainStage>(framebuffer, renderer));
+        renderingPipeline.AddStage(std::make_shared<PostProcessingEffect>(invertColorEffect));
+        renderingPipeline.AddStage(std::make_shared<PostProcessingEffect>(kernelEffect));
+        renderingPipeline.AddStage(std::make_shared<FramebufferToScreen>());
+        
 
         WindowData windowData;
         windowData.perspectiveProjection = &perspectiveProjection;
@@ -401,14 +479,23 @@ int main()
         float cameraFlyMovement = 4;
         float pi = 3.1415;
         float alphaDiscard = 0.01;
+
+        float targetFps = 60;
+        bool prevCloack = false;
+        bool cloackEngaged = false;
+
+        float cloackRefractTarget = 1.33;
+        float initialCloack = 0;
+        
+        int animationTime = 0.5 * targetFps;
+        int currentAnimationTime = -1;
+
         while (!glfwWindowShouldClose(window))
         {
 
             double currentTime = glfwGetTime();
             float deltaTime = currentTime - lastTime;
             io.DeltaTime = deltaTime;
-
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             double xpos, ypos;
             glfwGetCursorPos(window, &xpos, &ypos);
@@ -491,12 +578,11 @@ int main()
             glm::mat4 projection = perspectiveProjection.GetProjectionMatrix(
                 window_width, window_height);
 
-            RenderingContext renderingContext{camera, scene, projection};
+            RenderingContext renderingContext{camera, scene, projection, nullptr, glm::mat4(0), deltaTime};
 
             defaultShader->Bind();
-            defaultShader->SetUniform1f("alphaDiscard", alphaDiscard);
-            defaultShader->SetUniformVec3("cameraPosition", camera.Position);
-
+            //defaultShader->SetUniform1f("alphaDiscard", alphaDiscard);
+            
             renderingPipeline.Render(renderingContext);
 
           
@@ -517,6 +603,71 @@ int main()
             ImGui::DragFloat3("Scale", (float *)&sponza->Scale, 0.01, -20, 20);
             ImGui::End();
 
+            ImGui::Begin("Crysis Guy");
+            ImGui::DragFloat3("Translation", (float *)&cryGuy->Translation, 0.1, -2000, 2000);
+            ImGui::DragFloat3("Rotation", (float *)&cryGuy->Rotation, 0.01, -pi * 2, pi * 2);
+            ImGui::DragFloat3("Scale", (float *)&cryGuy->Scale, 0.01, -20, 20);
+            ImGui::DragFloat("Cloack refract", &cloackRefractTarget, 0.01, 1, 5);
+            ImGui::Checkbox("Engage Cloack", &cloackEngaged);
+            ImGui::End();
+
+            /*
+                       float targetFps = 60;
+                        bool prevCloack = false;
+                        bool cloackEngaged = false;
+
+                        float cloackRefractTarget = 1.0 / 1.33;
+                        float initialCloack = 0;
+                        
+                        int animationTime = 1.5 * targetFps;
+                        int currentAnimationTime = -1;
+            
+            */
+
+            if (cloackEngaged != prevCloack) {
+                printf("Animating...\n");
+                currentAnimationTime++;
+                float progress = (float(currentAnimationTime) / float(animationTime));
+                if (cloackEngaged) { //cloacking
+                     for (auto& cryGuyPart: cryGuy->SceneObjectElements) {
+                        cryGuyPart.refractivity = pow(progress, 2);
+                        cryGuyPart.refractionRatio = (1.0 / cloackRefractTarget) * pow(progress, 2);
+                        printf("Cloack: %f\n", cryGuyPart.refractionRatio);
+                    }
+                }
+                else { //uncloacking
+                     for (auto& cryGuyPart: cryGuy->SceneObjectElements) {
+                        cryGuyPart.refractivity = 1 - pow(progress, 2);
+                        cryGuyPart.refractionRatio = (1.0 / cloackRefractTarget) * (1 - pow(progress, 2));
+                         printf("Cloack: %f\n", cryGuyPart.refractionRatio);
+                    }
+                }
+
+                if (currentAnimationTime == animationTime) {
+                    printf("Animation finished!\n");
+                    prevCloack = cloackEngaged;
+                    currentAnimationTime = -1;
+                }
+            } else {
+                  if (cloackEngaged) {
+                    for (auto& cryGuyPart: cryGuy->SceneObjectElements) {
+                        cryGuyPart.refractionRatio = (1.0 / cloackRefractTarget);
+                    }
+                  }else {
+                    for (auto& cryGuyPart: cryGuy->SceneObjectElements) {
+                        cryGuyPart.refractionRatio = (1.0 / cloackRefractTarget) * 2;
+                    }
+                  }
+            }
+
+
+
+            ImGui::Begin("1M cube");
+            ImGui::DragFloat3("Translation", (float *)&oneMeterCube->Translation, 0.1, -2000, 2000);
+            ImGui::DragFloat3("Rotation", (float *)&oneMeterCube->Rotation, 0.01, -pi * 2, pi * 2);
+            ImGui::DragFloat3("Scale", (float *)&oneMeterCube->Scale, 0.01, -20, 20);
+            ImGui::End();
+
             ImGui::Begin("Light cube");
             ImGui::DragFloat3("Translation", (float *)&pointLight->Translation, 0.1, -2000, 2000);
             ImGui::DragFloat3("Rotation", (float *)&pointLight->Rotation, 0.01, -pi * 2, pi * 2);
@@ -527,6 +678,15 @@ int main()
             ImGui::DragFloat("Quadratic", (float *)&pointLight->Light.Quadratic, 0.01, 0, 100);
             ImGui::DragFloat("Linear", (float *)&pointLight->Light.Linear, 0.01, 0, 100);
             ImGui::Checkbox("Enable light", (bool *)&pointLight->Light.IsPoint);
+            ImGui::End();
+
+            ImGui::Begin("Sun");
+            ImGui::DragFloat3("Translation", (float *)&sun->Translation, 0.1, -2000, 2000);
+            ImGui::DragFloat3("Rotation", (float *)&sun->Rotation, 0.01, -pi * 2, pi * 2);
+            ImGui::DragFloat3("Scale", (float *)&sun->Scale, 0.01, -20, 20);
+            ImGui::DragFloat3("Ambient Light", (float *)&sun->Light.Ambient, 0.01, 0, 1);
+            ImGui::DragFloat3("Diffuse Light", (float *)&sun->Light.Diffuse, 0.01, 0, 1);
+            ImGui::DragFloat3("Specular Light", (float *)&sun->Light.Specular, 0.01, 0, 1);
             ImGui::End();
 
 
@@ -547,7 +707,7 @@ int main()
             ImGui::Begin("Camera and Editor");
             ImGui::DragFloat("Alpha Discard", (float *)&alphaDiscard, 0.0001, 0.0f, 0.999f);
             ImGui::Checkbox("FPS mouse movement", &freeCameraMovementMouse);
-            ImGui::SliderFloat("Fly speed", &cameraFlyMovement, 0, 100);
+            ImGui::DragFloat("Fly speed", &cameraFlyMovement, 0.1, 0, 100);
             ImGui::RadioButton("Show cursor", &glfwCursorState, GLFW_CURSOR_NORMAL);
             ImGui::RadioButton("Hidden cursor", &glfwCursorState, GLFW_CURSOR_HIDDEN);
             ImGui::RadioButton("Disable cursor", &glfwCursorState, GLFW_CURSOR_DISABLED);
@@ -564,8 +724,10 @@ int main()
             glfwSwapBuffers(window);
             glfwPollEvents();
 
-            //// printf("Camera position: %f %f %f\n",
-            //     camera.Position.x,camera->Position.y, camera.Position.z );
+           // printf("Camera position: %f %f %f\n",
+              //   renderingContext.CurrentCamera.Position.x,
+              //   renderingContext.CurrentCamera.Position.y, 
+              //   renderingContext.CurrentCamera.Position.z );
             // printf("Camera angle: h %f v %f\n",
             //     camera.horizontalAngle, camera.verticalAngle);
         }

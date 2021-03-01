@@ -3,20 +3,14 @@
 #include <string>
 
 class Texture {
-public:
     unsigned int rendererId;
-    std::string filepath;
-    unsigned char* localBuffer;
-    int width, height, bpp;
-    bool valid;
-
+public:
+    int Width, Height;
+    bool Valid;
     Texture();
-
-    Texture(const std::string& path);
+    Texture(int width, int height, int textureId);
+    Texture(const std::string& path, bool srgb = true);
     void Dispose() const;
     void Bind(unsigned int slot) const;
     void Unbind() const;
-
-    inline int GetWidth() const {return width;}
-    inline int GetHeight() const {return height;}
 };

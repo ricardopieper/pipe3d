@@ -2,7 +2,7 @@
 #include <glad/glad.h>
 #include <iostream>
 
-VertexArray::VertexArray() {
+VertexArray::VertexArray(BufferLayout bufferLayout): bufferLayout(bufferLayout) {
     glGenVertexArrays(1, &rendererId);
 }
 
@@ -18,20 +18,20 @@ void VertexArray::Unbind() const {
     glBindVertexArray(0);
 }
 
-void VertexArray::AddBufferAndBind(VertexBuffer& vb, BufferLayout& layout) {
+void VertexArray::AddBufferAndBind(VertexBuffer& vb) {
 
     Bind();
     vb.Bind();
-    auto elems = layout.GetElements();
+    auto elems = bufferLayout.GetElements();
     unsigned int offset = 0;
 
     for (size_t i = 0; i < elems.size(); i++) {
 
         auto element = elems[i];
-        auto stride = layout.GetStride();
+        auto stride = bufferLayout.GetStride();
         glEnableVertexAttribArray(i);
         glVertexAttribPointer(i, element.count, element.type, 
-            element.normalized? GL_TRUE: GL_FALSE, layout.GetStride(), (const void*)offset);
+            element.normalized? GL_TRUE: GL_FALSE, bufferLayout.GetStride(), (const void*)offset);
         offset += element.count * BufferLayoutElement::GetSizeOfType(element.type);
     }
 };

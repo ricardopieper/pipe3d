@@ -24,7 +24,7 @@ struct WavefrontMesh
     float specularStrength;
     int illuminationModel;
     //map_Ka
-    std::string ambientTexturePath;
+    std::string reflectivityTexturePath;
     //map_Kd
     std::string diffuseTexturePath;
     //map_Ks
@@ -58,11 +58,11 @@ struct WavefrontMesh
         m.ambient = this->ambientRgb;
         m.diffuse = this->diffuseRgb;
         m.specular = this->specularRgb;
-        if (illuminationModel == 1) {
-            m.shininess = 0;
-        } else {
+       // if (illuminationModel == 1) {
+       //     m.shininess = 0;
+       // } else {
             m.shininess = specularStrength;
-        }
+        //}
         return m;
     }
 };
@@ -76,7 +76,7 @@ struct WavefrontMaterial
     int illuminationModel;
     std::string materialName;
      //map_Ka
-    std::string ambientTexturePath;
+    std::string reflectivityTexturePath;
     //map_Kd
     std::string diffuseTexturePath;
     //map_Ks
@@ -355,7 +355,7 @@ public:
                 char name[512];
                 fscanf(materialFile, "%s\n", (char*)name);
                 std::string buffer(name);
-                currentMaterial.ambientTexturePath = name;
+                currentMaterial.reflectivityTexturePath = name;
             }
              else if (strcmp(line, "map_Kd") == 0)
             {
@@ -410,7 +410,7 @@ public:
                     mesh.specularStrength = mat.specularStrength;
                     mesh.illuminationModel = mat.illuminationModel;
 
-                    mesh.ambientTexturePath = mat.ambientTexturePath;
+                    mesh.reflectivityTexturePath = mat.reflectivityTexturePath;
                     mesh.diffuseTexturePath = mat.diffuseTexturePath;
                     mesh.specularTexturePath = mat.specularTexturePath;
                     mesh.alphaTexturePath = mat.alphaTexturePath;

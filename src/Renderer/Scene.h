@@ -8,7 +8,8 @@
 #include <memory>
 #include <map>
 
-struct SceneObjectBuffer {
+
+struct SceneObjectElement {
     VertexArray vertexArray;
     VertexBuffer vertexBuffer;
     IndexBuffer indexBuffer;
@@ -16,25 +17,45 @@ struct SceneObjectBuffer {
     Texture texture;
     Texture specularHighlight;
     Texture normalMap;
+    Texture reflectionMap;
     Material material;
-    SceneObjectBuffer(VertexArray vertexArray, VertexBuffer vertexBuffer, IndexBuffer indexBuffer, 
-                      std::shared_ptr<Shader> shader, Texture texture, Texture specularHighlight,Texture normalMap,
-                      Material material):
+    float reflectivity;
+    float refractivity;
+    float refractionRatio;
+    BoundingBox boundingBox;
+    SceneObjectElement(VertexArray vertexArray, VertexBuffer vertexBuffer, IndexBuffer indexBuffer, 
+                      std::shared_ptr<Shader> shader, Texture texture, Texture specularHighlight, Texture normalMap,
+                      Texture reflectionMap, Material material, BoundingBox boundingBox, 
+                      float reflectivity, float refractivity, float refractionRatio):
         vertexArray(vertexArray), vertexBuffer(vertexBuffer), indexBuffer(indexBuffer), shader(shader),
         texture(texture), specularHighlight(specularHighlight),
-        normalMap(normalMap), material(material) { }
+        normalMap(normalMap), reflectionMap(reflectionMap), material(material), boundingBox(boundingBox),
+        reflectivity(reflectivity), refractivity(refractivity), refractionRatio(refractionRatio) { }
 };
 
 struct ModelToRender {
+    
     Geometry geometry;
     Material material;
     std::shared_ptr<Shader> shader;
     Texture texture;
     Texture normalMap;
     Texture specularHighlight;
-    ModelToRender(Geometry geometry, Material material, std::shared_ptr<Shader> shader, Texture texture, Texture specularHighlight, Texture normalMap):
-        geometry(geometry), texture(texture), shader(shader),
-        material(material), specularHighlight(specularHighlight), normalMap(normalMap) { }
+    Texture reflectionMap;
+
+    float reflectivity;
+    float refractivity;
+    float refractionRatio; 
+
+    ModelToRender(Geometry geometry, Material material, std::shared_ptr<Shader> shader, 
+                  Texture texture, Texture specularHighlight, Texture normalMap, 
+                  Texture reflectionMap):
+        geometry(geometry), texture(texture), shader(shader), material(material), 
+        specularHighlight(specularHighlight), normalMap(normalMap), reflectionMap(reflectionMap) { 
+        reflectivity = 0;
+        refractivity = 0;
+        refractionRatio = 0;
+    }
 };
 
 struct LightProperties {
@@ -50,8 +71,8 @@ struct LightProperties {
 
 class SceneObject {
 public:
-
-    std::vector<SceneObjectBuffer> SceneObjectBuffers;
+    std::string Name = "Object";
+    std::vector<SceneObjectElement> SceneObjectElements;
     LightProperties Light;
 
     glm::vec3 Translation;
@@ -59,15 +80,33 @@ public:
     glm::vec3 Rotation;
 
     bool Outlined;
-
-    SceneObject(std::vector<SceneObjectBuffer> sceneObjectBuffers, LightProperties light): 
-        SceneObjectBuffers(sceneObjectBuffers), Light(light)
+    
+    SceneObject(std::vector<SceneObjectElement> SceneObjectElements, LightProperties light): 
+        SceneObjectElements(SceneObjectElements), Light(light)
     {
         Translation = glm::vec3(0.0f);
         Scale = glm::vec3(1.0f);
         Rotation = glm::vec3(0.0f);
         Outlined = false;
     }
+
+    glm::mat4 ComputeModel() {
+        auto model = glm::scale(glm::translate(glm::mat4(1.0f), this->Translation), this->Scale);
+        if (this->Rotation.x > 0.0001 || this->Rotation.x < 0.0001)
+        {
+            model = glm::rotate(model, this->Rotation.x, glm::vec3(1.0, 0.0, 0.0));
+        }
+        if (this->Rotation.y > 0.0001 || this->Rotation.y < 0.0001)
+        {
+            model = glm::rotate(model, this->Rotation.y, glm::vec3(0.0, 1.0, 0.0));
+        }
+        if (this->Rotation.z > 0.0001 || this->Rotation.z < 0.0001)
+        {
+            model = glm::rotate(model, this->Rotation.z, glm::vec3(0.0, 0.0, 1.0));
+        }
+        return model;
+    }
+
 };
 
 class Scene {
@@ -76,14 +115,20 @@ public:
     std::vector<std::shared_ptr<SceneObject>> SceneObjects;
 
     std::shared_ptr<SceneObject> FromGeometry(Geometry geo, Material material, std::shared_ptr<Shader> shader, 
-        Texture texture, Texture specularHighlights, Texture normalMap) {
-        VertexArray va;
+        Texture texture, Texture specularHighlights, Texture normalMap, Texture reflectionMap) {
+        BufferLayout layout;
+        layout.PushFloat(3); //position
+        layout.PushFloat(3); //color
+        layout.PushFloat(3); //normal
+        layout.PushFloat(2); //uv
+        VertexArray va(layout);
         VertexBuffer vb = geo.GetVertexBuffer();
         IndexBuffer ib = geo.GetIndexBuffer();
 
-        std::vector<SceneObjectBuffer> geometry;
-        auto obj = SceneObjectBuffer(
-            va, vb, ib, shader, texture, specularHighlights, normalMap, material
+        std::vector<SceneObjectElement> geometry;
+        auto obj = SceneObjectElement(
+            va, vb, ib, shader, texture, specularHighlights, 
+            normalMap, reflectionMap, material, Geometry::ComputeBoundingBox(geo.VertexData), 0,0,0
         );
 
         geometry.push_back(obj);
@@ -96,16 +141,22 @@ public:
     }
 
     std::shared_ptr<SceneObject> FromMeshes(std::vector<ModelToRender> renderableObjects) {
-        std::vector<SceneObjectBuffer> allMeshes;
+        std::vector<SceneObjectElement> allMeshes;
+        BufferLayout layout;
+        layout.PushFloat(3); //position
+        layout.PushFloat(3); //color
+        layout.PushFloat(3); //normal
+        layout.PushFloat(2); //uv
 
         for (auto obj: renderableObjects) {
-            VertexArray va;
+            VertexArray va(layout);
             VertexBuffer vb = obj.geometry.GetVertexBuffer();
             IndexBuffer ib = obj.geometry.GetIndexBuffer();
         
-            auto mesh = SceneObjectBuffer(
+            auto mesh = SceneObjectElement(
                 va, vb, ib, obj.shader, obj.texture, obj.specularHighlight,
-                obj.normalMap, obj.material
+                obj.normalMap, obj.reflectionMap, obj.material, Geometry::ComputeBoundingBox(obj.geometry.VertexData),
+                obj.reflectivity, obj.refractivity, obj.refractionRatio
             );
             allMeshes.push_back(mesh);
         }  
@@ -121,7 +172,7 @@ public:
 
     ~Scene() {
         for (auto objptr : SceneObjects) {
-            for (auto renderable: objptr->SceneObjectBuffers) {
+            for (auto renderable: objptr->SceneObjectElements) {
                 renderable.vertexArray.Unbind();
                 renderable.vertexArray.Dispose();
 

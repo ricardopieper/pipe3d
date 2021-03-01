@@ -7,7 +7,9 @@ class FramebufferToScreen: public RenderingPipelineStage {
 private:
     std::shared_ptr<Framebuffer> framebuffer;
 public:
-    FramebufferToScreen(int width, int height) {
+    FramebufferToScreen() { }
+
+    void Initialize(int width, int height) override {
         framebuffer = std::make_shared<Framebuffer>();
         framebuffer->MakeFramebuffer(width, height);
     }

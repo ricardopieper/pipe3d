@@ -8,7 +8,9 @@ private:
     std::shared_ptr<Shader> shader;
     std::shared_ptr<Framebuffer> framebuffer;
 public:
-    PostProcessingEffect(int width, int height, std::shared_ptr<Shader> shader): shader(shader) {
+    PostProcessingEffect(std::shared_ptr<Shader> shader): shader(shader) { }
+
+    void Initialize(int width, int height) override {
         framebuffer = std::make_shared<Framebuffer>(shader);
         framebuffer->MakeFramebuffer(width, height);
     }

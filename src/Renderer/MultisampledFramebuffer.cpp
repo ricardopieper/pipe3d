@@ -54,9 +54,9 @@ void MultisampledFramebuffer::MakeFramebuffer(int width, int height)
 
     //setup quad for rendering
 
-    this->framebufferQuadLayout = BufferLayout();
-    this->framebufferQuadLayout.PushFloat(2); //position
-    this->framebufferQuadLayout.PushFloat(2); //tex coords
+    auto framebufferQuadLayout = BufferLayout();
+    framebufferQuadLayout.PushFloat(2); //position
+    framebufferQuadLayout.PushFloat(2); //tex coords
 
     //fullscreen quad
     float quadData[] = {
@@ -68,7 +68,7 @@ void MultisampledFramebuffer::MakeFramebuffer(int width, int height)
         -1, 1, 0, 1};
 
     this->quadVertexBuffer = std::make_unique<VertexBuffer>(&quadData, sizeof(float) * 6 * 4);
-    this->quadVertexArray = VertexArray();
+    this->quadVertexArray = VertexArray(framebufferQuadLayout);
 }
 
 void MultisampledFramebuffer::Bind()
@@ -88,16 +88,21 @@ void MultisampledFramebuffer::BindDefaultShader()
     framebufferShader->Bind();
 }
 
+void MultisampledFramebuffer::RenderToFramebuffer(Framebuffer& framebuffer) {
+    this->RenderTo(false, framebuffer.FramebufferId);
+}
+
+void MultisampledFramebuffer::RenderToSelf() {
+    this->RenderTo(false, this->multisampledFramebufferId);
+}
+
 void MultisampledFramebuffer::RenderToScreen() {
-    this->Render(true);
+    this->RenderTo(true, 0);
 }
 
-void MultisampledFramebuffer::RenderToFramebuffer() {
-    this->Render(false);
-}
-
-void MultisampledFramebuffer::Render(bool toScreen)
+void MultisampledFramebuffer::RenderTo(bool toScreen, unsigned int framebufferId)
 {
+    glMemoryBarrier(GL_FRAMEBUFFER_BARRIER_BIT);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, multisampledFramebufferId);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, intermediateFbo);
     glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
@@ -105,11 +110,11 @@ void MultisampledFramebuffer::Render(bool toScreen)
     if (toScreen) {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     } else {
-        glBindFramebuffer(GL_FRAMEBUFFER, multisampledFramebufferId);
+        glBindFramebuffer(GL_FRAMEBUFFER, framebufferId);
     } 
     glClearColor(0,0,0,1);
     glClear(GL_COLOR_BUFFER_BIT);
-    quadVertexArray.AddBufferAndBind(*quadVertexBuffer, framebufferQuadLayout);
+    quadVertexArray.AddBufferAndBind(*quadVertexBuffer);
     glDisable(GL_DEPTH_TEST);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, screenTexture);

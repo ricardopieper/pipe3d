@@ -24,6 +24,7 @@ public:
 	void ChangeHorizontalAngle(float delta);
 
 	glm::mat4 GetViewMatrix();
-
+	glm::mat4 LookAt(glm::vec3 at, glm::vec3 up);
+	
 	void ResetAngle();
 };

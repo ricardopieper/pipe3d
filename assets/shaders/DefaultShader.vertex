@@ -8,12 +8,14 @@ layout(location = 3) in vec2 uv;
 uniform mat4 u_projection;
 uniform mat4 u_view;
 uniform mat4 u_model;
+uniform mat4 u_lightSpace;
 
 out vec3 fragmentColor;
 out vec3 fragmentNormal;
 out vec3 fragPosition;
 out vec2 fragmentUv;
 out vec3 normalMatrix;
+out vec4 fragmentPosLight;
 
 void main() {
     fragPosition = vec3(u_model * vec4(position, 1));
@@ -21,4 +23,39 @@ void main() {
     fragmentColor = vertexColor;
     fragmentNormal = mat3(transpose(inverse(u_model))) * vertexNormal;
     fragmentUv = uv;
+    
+    //so, the vertex position is in worldspace
+    //and we compute gl_Position to get vertex in view, then clip space 
+
+    /*Review:
+
+     - Multiplying position * model gives the vertex position in worldspace
+        (it brings the object to the world)
+     - Multiplying it by the view matrix (the glm::lookAt thing) puts 
+        all vertices in a position as if they were seen by the camera (all vertices in the world)
+     - Multiplying it by the projection matrix brings all vertices to *clip* space, or *projection* space.
+        This can be 2 projections:
+            - Perspective: like humans see. Distorts the vertices so that the ones far away from camera appear towards 
+            the center of the view etc
+            - Ortographic: the distortion to the vertices is minimal, i.e. it doesn't change the sizes of objects, 
+            it depicts clearly what the sizes of objects are.
+     - The GPU will divide xyz by w: this is perspective division. I don't know why it has to do it 
+        rather than letting us do it ourselves. Vertices far away have bigger W, as xyz components get smaller, they also go towards 0,0 (center screen)
+        like you'd expect. This is part of the perspective distortion.
+     - Maybe ortographic projection has W = 1 for all vertices so that no distortion happens?     
+
+     *NOTICE*: This perspective division *only* happens for gl_Position!
+    */
+
+    /*
+    I want to know where this vertex would be located
+      as seen from the *light* (u_lightSpace) and not viewspace (u_view).
+
+    u_lightSpace is a camera looking down towards the scene, with a ortographic or projection matrix already applied to it. 
+    
+    This will tell me the vertex position as seen from the light.
+    */
+
+    //Notice that this variable won't go through perspective division, only gl_Position does!
+    fragmentPosLight = u_lightSpace * u_model * vec4(position, 1);
 }

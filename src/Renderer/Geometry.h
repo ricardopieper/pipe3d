@@ -5,6 +5,22 @@
 
 #include "VertexBuffer.h"
 #include "IndexBuffer.h"
+#include <limits>
+
+struct BoundingBox {
+    glm::vec3 min;
+    glm::vec3 max;
+
+    static BoundingBox MinMaxBox() {
+        float min = std::numeric_limits<float>().min();
+        float max = std::numeric_limits<float>().max();
+        BoundingBox box;
+        box.min = glm::vec3(max);
+        box.max = glm::vec3(min);
+        return box;
+    }
+};
+
 
 struct Material {
     glm::vec3 ambient;
@@ -50,4 +66,18 @@ public:
     IndexBuffer GetIndexBuffer() {
         return IndexBuffer(Indices.data(), Indices.size());
     }
+
+    static BoundingBox ComputeBoundingBox(const std::vector<Vertex>& vertices) {
+        BoundingBox box = BoundingBox::MinMaxBox();
+        
+        for (auto& vertex: vertices) {
+            box.min.x = std::min(box.min.x, vertex.position.x);
+            box.min.y = std::min(box.min.y, vertex.position.y);
+            box.min.z = std::min(box.min.z, vertex.position.z);
+            box.max.x = std::max(box.max.x, vertex.position.x);
+            box.max.y = std::max(box.max.y, vertex.position.y);
+            box.max.z = std::max(box.max.z, vertex.position.z);
+        }
+        return box;
+    }   
 };
