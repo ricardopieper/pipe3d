@@ -6,6 +6,9 @@ cmake_minimum_required (VERSION 3.8)
 project ("Pipe3D")
 set(CMAKE_BUILD_TYPE Debug)
 
+remove_definitions(_GLFW_X11=0)
+add_compile_definitions(_GLFW_WIN32=1)
+
 # Include sub-projects.
 set(SRC_DIR "src")
 set(VENDOR_DIR "vendor")
@@ -17,7 +20,12 @@ file(GLOB pipe3d_renderer CONFIGURE_DEPENDS
 add_executable(Pipe3D_Playground
     "src/Playground.cpp"
 	${pipe3d_renderer})
-    
+
+
+
+set_property(TARGET Pipe3D_Playground PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR})
+
+
 target_include_directories(Pipe3D_Playground PRIVATE ${SRC_DIR})
 target_include_directories(Pipe3D_Playground PRIVATE "${VENDOR_DIR}/stb")
 set_property(TARGET Pipe3D_Playground PROPERTY CXX_STANDARD 11)

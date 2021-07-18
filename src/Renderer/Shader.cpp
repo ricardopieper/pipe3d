@@ -6,13 +6,16 @@
 #include <iostream>
 #include <glm/glm.hpp>
 #include <sys/types.h>
-#include <sys/inotify.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <thread>
-#include <unistd.h>
-
+#include <windows.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <tchar.h>
+#include <Shlwapi.h>
 
 static std::string LoadFile(const std::string& path) {
     std::ifstream t(path);
@@ -38,7 +41,7 @@ unsigned int RunCompileShader(unsigned int type, const std::string& path, const 
         std::cout << "Failed to compile "<<path<<": " << (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << std::endl;
         std::cout << message << std::endl;
         glDeleteShader(id);
-        delete message;
+        delete[] message;
         return 0;
     }
 
@@ -70,6 +73,67 @@ void Shader::Reload() {
     CompileShader();
 }
 
+#ifdef _WIN32
+
+void Shader::ListenChanges() {
+
+
+    fileChangeListener.push_back(new std::thread([this]() {
+        
+        char buffer[256];
+        TCHAR** lppPart = { NULL };
+
+        GetFullPathName(this->fragmentPath.c_str(),
+            256,
+            buffer,
+            lppPart);
+
+        std::string filename(buffer);
+        std::string directory;
+        const size_t last_slash_idx = filename.rfind('\\');
+        if (std::string::npos != last_slash_idx)
+        {
+            directory = filename.substr(0, last_slash_idx);
+        }
+        while (true) {
+            HANDLE hDir = CreateFile(
+                directory.c_str(), FILE_LIST_DIRECTORY,
+                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+                OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
+
+            if (hDir == INVALID_HANDLE_VALUE) {
+                std::cout << "DEU RUIM " << std::endl;
+                break;
+            }
+
+            /*
+            return ReadDirectoryChangesW(
+			pWatch->mDirHandle, pWatch->mBuffer, sizeof(pWatch->mBuffer),
+            pWatch->mIsRecursive,
+			pWatch->mNotifyFilter, NULL, &pWatch->mOverlapped, _clear ? 0 : WatchCallback) != 0;
+            */
+            BYTE buffer[32 * 1024];
+            DWORD BytesReturned;
+
+            while (ReadDirectoryChangesW(
+                hDir, /* handle to directory */
+                &buffer, /* read results buffer */
+                sizeof(buffer), /* length of buffer */
+                TRUE, /* recursive */
+                FILE_NOTIFY_CHANGE_LAST_WRITE, /* filter conditions */
+                &BytesReturned, /* bytes returned */
+                NULL, /* overlapped buffer */
+                NULL)) {
+               
+                this->Changed = true;
+            }
+        }
+    }));
+
+}
+#else
+#include <sys/inotify.h>
+#include <unistd.h>
 void Shader::ListenChanges() {
     fileChangeListener.push_back(new std::thread([this]() {
         auto fd = inotify_init();
@@ -77,27 +141,28 @@ void Shader::ListenChanges() {
         char buffer[buflen];
         auto wd = inotify_add_watch(fd, this->vertexPath.c_str(), IN_MODIFY | IN_CREATE | IN_DELETE);
         while (true) {
-            int length = read(fd, buffer, buflen ); 
+            int length = read(fd, buffer, buflen);
             printf("Vertex shader program change detected\n");
             this->Changed = true;
         }
-        ( void ) inotify_rm_watch( fd, wd );
-        ( void ) close( fd );
-    }));
+        (void)inotify_rm_watch(fd, wd);
+        (void)close(fd);
+        }));
     fileChangeListener.push_back(new std::thread([this]() {
         auto fd = inotify_init();
         const int buflen = 1024 * (sizeof(inotify_event) + 16);
         char buffer[buflen];
         auto wd = inotify_add_watch(fd, this->fragmentPath.c_str(), IN_MODIFY | IN_CREATE | IN_DELETE);
         while (true) {
-            int length = read(fd, buffer, buflen ); 
+            int length = read(fd, buffer, buflen);
             printf("Fragment shader program change detected\n");
             this->Changed = true;
         }
-        ( void ) inotify_rm_watch( fd, wd );
-        ( void ) close( fd );
-    }));
+        (void)inotify_rm_watch(fd, wd);
+        (void)close(fd);
+        }));
 }
+#endif
 
 void Shader::Bind() const {
     glUseProgram(rendererId);

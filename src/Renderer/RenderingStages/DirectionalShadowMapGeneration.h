@@ -123,7 +123,7 @@ public:
         
         context.ShadowMap = depthShadowMap;
         depthShadowMap->RenderToSelf();
-        glCullFace(GL_BACK);
+        glCullFace(GL_FRONT);
         return depthShadowMap;
     };
     

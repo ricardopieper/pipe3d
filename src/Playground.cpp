@@ -39,6 +39,10 @@
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
+#include <windows.h>
+#include <string>
+#include <iostream>
+
 static void GLFWErrorCallback(int error, const char *description)
 {
     std::cout << "GLFW Error " << error << " " << description << std::endl;
@@ -154,9 +158,18 @@ std::string ReplaceString(std::string subject, const std::string &search,
     return subject;
 }
 
+std::wstring ExePath() {
+    wchar_t buffer[MAX_PATH] = { 0 };
+    GetModuleFileNameW(NULL, buffer, MAX_PATH);
+    std::wstring::size_type pos = std::wstring(buffer).find_last_of(L"\\/");
+    return std::wstring(buffer).substr(0, pos);
+}
+
+
 float mouseWheel = 0;
 int main()
 {
+    std::wcout << "my directory is " << ExePath() << "\n";
     glfwInit();
     //glfwWindowHint(GLFW_DOUBLEBUFFER, GL_FALSE);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -296,8 +309,8 @@ int main()
         sun->Scale = glm::vec3(0.1);
         sun->Light.IsDirectional = true;
         sun->Light.Ambient = glm::vec3(0.005);
-        sun->Light.Diffuse = glm::vec3(0.1);
-        sun->Light.Specular = glm::vec3(0.0);
+        sun->Light.Diffuse = glm::vec3(0.3);
+        sun->Light.Specular = glm::vec3(0.1);
        // pointLight->Outlined = true;
 
         auto pointLight = scene.FromGeometry(
@@ -306,9 +319,9 @@ int main()
         pointLight->Translation = glm::vec3(0.0f);
         pointLight->Scale = glm::vec3(0.1);
         pointLight->Light.IsPoint = true;
-        pointLight->Light.Ambient = glm::vec3(0);
-        pointLight->Light.Diffuse = glm::vec3(0);
-        pointLight->Light.Specular = glm::vec3(0);
+        pointLight->Light.Ambient = glm::vec3(0.3);
+        pointLight->Light.Diffuse = glm::vec3(0.3);
+        pointLight->Light.Specular = glm::vec3(0.3);
         pointLight->Light.Constant = 1;
         pointLight->Light.Linear = 0.18;
         pointLight->Light.Quadratic = 0.01;
@@ -319,9 +332,9 @@ int main()
         pointLight2->Translation = glm::vec3(1.0f, 0.0f, 1.0f);
         pointLight2->Scale = glm::vec3(0.1);
         pointLight2->Light.IsPoint = true;
-        pointLight2->Light.Ambient = glm::vec3(0.00);
-        pointLight2->Light.Diffuse = glm::vec3(0);
-        pointLight2->Light.Specular = glm::vec3(0);
+        pointLight2->Light.Ambient = glm::vec3(0.3);
+        pointLight2->Light.Diffuse = glm::vec3(0.3);
+        pointLight2->Light.Specular = glm::vec3(0.3);
         pointLight2->Light.Constant = 1;
         pointLight2->Light.Linear = 0.7;
         pointLight2->Light.Quadratic = 1.8;
@@ -388,7 +401,7 @@ int main()
             texPath = ReplaceString(texPath, "\\", "/");
 
             Texture tex = textureCache.GetTexture(texPath);
-            auto& emplaced = chloeModel.emplace_back(geom, material, defaultShader, tex, Texture(""), Texture(""),  Texture(""));
+            chloeModel.emplace_back(geom, material, defaultShader, tex, Texture(""), Texture(""),  Texture(""));
             //emplaced.reflectivity = 1.0;
         }
 
