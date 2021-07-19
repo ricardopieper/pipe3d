@@ -225,6 +225,7 @@ unsigned int Shader::GetUniformLocation(const std::string& name) {
             //std::cout << "Warning: Did not find uniform with name "<<name<<std::endl;
             return -1;
         } else {
+            std::cout << "caching uniform " << name << std::endl;
             uniformCache[name] = location;
         }
     } 

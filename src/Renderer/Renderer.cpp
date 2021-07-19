@@ -29,15 +29,15 @@ void Renderer::Render(RenderingContext &context)
 
         for (auto objMesh : sceneObject.SceneObjectElements)
         {
-            auto shader = *objMesh.shader;
-            shader.Bind();
+            auto shader = objMesh.shader;
+            shader->Bind();
 
             glBindTexture(GL_TEXTURE_2D, 0);
             
             objMesh.vertexArray.Bind();
             objMesh.vertexArray.AddBufferAndBind(objMesh.vertexBuffer);
             objMesh.indexBuffer.Bind();
-            if (shader.IsDefault)
+            if (shader->IsDefault)
             {
                 int numLights = 0;
                 for (auto lightObject :  context.CurrentScene.SceneObjects)
@@ -45,20 +45,20 @@ void Renderer::Render(RenderingContext &context)
                     if (lightObject->Light.IsDirectional)
                     {
                         std::string indexed = "directionalLights[" + std::to_string(numLights) + "]";
-                        shader.SetUniformVec3(indexed + ".ambient", lightObject->Light.Ambient);
-                        shader.SetUniformVec3(indexed + ".diffuse", lightObject->Light.Diffuse);
-                        shader.SetUniformVec3(indexed + ".specular", lightObject->Light.Specular);
-                        shader.SetUniformVec3(indexed + ".position", lightObject->Translation);
-                        shader.SetUniform1f(indexed + ".constant", 0);
-                        shader.SetUniform1f(indexed + ".linear", 0);
-                        shader.SetUniform1f(indexed + ".quadratic", 0);
+                        shader->SetUniformVec3(indexed + ".ambient", lightObject->Light.Ambient);
+                        shader->SetUniformVec3(indexed + ".diffuse", lightObject->Light.Diffuse);
+                        shader->SetUniformVec3(indexed + ".specular", lightObject->Light.Specular);
+                        shader->SetUniformVec3(indexed + ".position", lightObject->Translation);
+                        shader->SetUniform1f(indexed + ".constant", 0);
+                        shader->SetUniform1f(indexed + ".linear", 0);
+                        shader->SetUniform1f(indexed + ".quadratic", 0);
                         numLights++;
                     }
                 }
-                shader.SetUniform1i("numDirLights", numLights);
+                shader->SetUniform1i("numDirLights", numLights);
             }
             
-            if (shader.IsDefault)
+            if (shader->IsDefault)
             {
                 int numLights = 0;
                 for (auto lightObject :  context.CurrentScene.SceneObjects)
@@ -66,39 +66,39 @@ void Renderer::Render(RenderingContext &context)
                     if (lightObject->Light.IsPoint)
                     {
                         std::string indexed = "pointLights[" + std::to_string(numLights) + "]";
-                        shader.SetUniformVec3(indexed + ".ambient", lightObject->Light.Ambient);
-                        shader.SetUniformVec3(indexed + ".diffuse", lightObject->Light.Diffuse);
-                        shader.SetUniformVec3(indexed + ".specular", lightObject->Light.Specular);
-                        shader.SetUniformVec3(indexed + ".position", lightObject->Translation);
-                        shader.SetUniform1f(indexed + ".constant", lightObject->Light.Constant);
-                        shader.SetUniform1f(indexed + ".linear", lightObject->Light.Linear);
-                        shader.SetUniform1f(indexed + ".quadratic", lightObject->Light.Quadratic);
+                        shader->SetUniformVec3(indexed + ".ambient", lightObject->Light.Ambient);
+                        shader->SetUniformVec3(indexed + ".diffuse", lightObject->Light.Diffuse);
+                        shader->SetUniformVec3(indexed + ".specular", lightObject->Light.Specular);
+                        shader->SetUniformVec3(indexed + ".position", lightObject->Translation);
+                        shader->SetUniform1f(indexed + ".constant", lightObject->Light.Constant);
+                        shader->SetUniform1f(indexed + ".linear", lightObject->Light.Linear);
+                        shader->SetUniform1f(indexed + ".quadratic", lightObject->Light.Quadratic);
                         numLights++;
                     }
                 }
-                shader.SetUniform1i("numPointLights", numLights);
+                shader->SetUniform1i("numPointLights", numLights);
             }
-            if (shader.IsDefault) {
-                shader.SetUniformVec3("cameraPosition", context.CurrentCamera.Position);
+            if (shader->IsDefault) {
+                shader->SetUniformVec3("cameraPosition", context.CurrentCamera.Position);
 
-                //shader.SetUniformVec3("material.ambient", objMesh.material.ambient);
-               // shader.SetUniformVec3("material.diffuse", objMesh.material.diffuse);
-                shader.SetUniformVec3("material.specular", objMesh.material.specular);
-                shader.SetUniform1f("material.shininess", objMesh.material.shininess);
+                //shader->SetUniformVec3("material.ambient", objMesh.material.ambient);
+               // shader->SetUniformVec3("material.diffuse", objMesh.material.diffuse);
+                shader->SetUniformVec3("material.specular", objMesh.material.specular);
+                shader->SetUniform1f("material.shininess", objMesh.material.shininess);
             }
             
-            if (shader.IsDefault) {
+            if (shader->IsDefault) {
 
                 if (objMesh.texture.Valid)
                 {
                     objMesh.texture.Bind(0);
-                    if (shader.IsDefault)
-                        shader.SetUniform2f("u_colorSource", 0.0, 1.0);
+                    if (shader->IsDefault)
+                        shader->SetUniform2f("u_colorSource", 0.0, 1.0);
                 }
                 else
                 {
-                    if (shader.IsDefault)
-                        shader.SetUniform2f("u_colorSource", 1.0, 0.0);
+                    if (shader->IsDefault)
+                        shader->SetUniform2f("u_colorSource", 1.0, 0.0);
                 }
 
                 if (objMesh.specularHighlight.Valid)
@@ -115,23 +115,23 @@ void Renderer::Render(RenderingContext &context)
 
             skybox.Cubemap.Bind(5);
 
-            if (shader.IsDefault) {
-                shader.SetUniform1f("reflectivity", objMesh.reflectivity);
-                shader.SetUniform1f("refractivity", objMesh.refractivity);
-                shader.SetUniform1f("refractionRatio", objMesh.refractionRatio);
+            if (shader->IsDefault) {
+                shader->SetUniform1f("reflectivity", objMesh.reflectivity);
+                shader->SetUniform1f("refractivity", objMesh.refractivity);
+                shader->SetUniform1f("refractionRatio", objMesh.refractionRatio);
             }
 
-            shader.SetUniformMat4f("u_projection", context.Projection);
-            shader.SetUniformMat4f("u_view", view);
-            shader.SetUniformMat4f("u_model", model);
-            shader.SetUniformMat4f("u_lightSpace", context.LightSpace);
+            shader->SetUniformMat4f("u_projection", context.Projection);
+            shader->SetUniformMat4f("u_view", view);
+            shader->SetUniformMat4f("u_model", model);
+            shader->SetUniformMat4f("u_lightSpace", context.LightSpace);
 
             //When an object must be outlined, we do it by using the stencil buffer
             //@TODO: Outlined objects have to be rendered first for the code below to work... or last?
             if (sceneObject.Outlined)
             {
                 //The strategy is to use a single-color shader to render the object slightly upscaled,
-                //on top of the currently rendered object with the normal shader.
+                //on top of the currently rendered object with the normal shader->
                 //however, if we do this, we will remove the original object from the screen. It will just show a white box
                 //or whatever the chosen color is.
 
@@ -165,7 +165,7 @@ void Renderer::Render(RenderingContext &context)
                 //the area we draw again will be increased
                 glStencilOp(GL_INCR, GL_INCR, GL_INCR);
 
-                shader.Unbind();
+                shader->Unbind();
                 this->OutlineShader->Bind();
                 //Render the object as red (or rather, the outline)
                 this->OutlineShader->SetUniform3f("u_overridenColor", 1, 0, 0);
@@ -199,7 +199,7 @@ void Renderer::Render(RenderingContext &context)
                 }
             }
 
-            shader.Unbind();
+            shader->Unbind();
         }
         //unbind all textures
         glActiveTexture(GL_TEXTURE0 + 0);
