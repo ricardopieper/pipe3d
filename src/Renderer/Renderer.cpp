@@ -19,6 +19,7 @@ void Renderer::Render(RenderingContext &context)
 
     for (auto sceneObjectPtr: context.CurrentScene.SceneObjects)
     {
+        if (!sceneObjectPtr->Enabled) continue;
         //glActiveTexture(0);
        
         auto sceneObject = *sceneObjectPtr;

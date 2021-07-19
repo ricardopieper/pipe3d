@@ -217,8 +217,6 @@ void main() {
     vec3 normal = normalize(fragmentNormal);
 
 
-   
-
     vec3 cameraToSurface = normalize(cameraPosition - fragPosBumped);
     vec4 result = vec4(0,0,0,0);
     for (int i = 0; i < numDirLights; i++) {
@@ -235,7 +233,7 @@ void main() {
         Light light = pointLights[i];
         float distance = length(light.position - fragPosBumped);
         float attenuation = 1.0 / 
-            (light.constant + (light.linear * distance) + (light.quadratic * (distance * distance)));
+            ((10.0 / light.constant) + (light.linear * distance) + (light.quadratic * (distance * distance)));
         result += ComputeLight(
             light, attenuation, calculatedFragColor, 
             normal, fragPosBumped, cameraToSurface,

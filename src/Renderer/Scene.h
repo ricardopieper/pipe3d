@@ -22,15 +22,17 @@ struct SceneObjectElement {
     float reflectivity;
     float refractivity;
     float refractionRatio;
+    Geometry geometry;
     BoundingBox boundingBox;
     SceneObjectElement(VertexArray vertexArray, VertexBuffer vertexBuffer, IndexBuffer indexBuffer, 
                       std::shared_ptr<Shader> shader, Texture texture, Texture specularHighlight, Texture normalMap,
                       Texture reflectionMap, Material material, BoundingBox boundingBox, 
-                      float reflectivity, float refractivity, float refractionRatio):
+                      float reflectivity, float refractivity, float refractionRatio, 
+                      Geometry geometry):
         vertexArray(vertexArray), vertexBuffer(vertexBuffer), indexBuffer(indexBuffer), shader(shader),
         texture(texture), specularHighlight(specularHighlight),
         normalMap(normalMap), reflectionMap(reflectionMap), material(material), boundingBox(boundingBox),
-        reflectivity(reflectivity), refractivity(refractivity), refractionRatio(refractionRatio) { }
+        reflectivity(reflectivity), refractivity(refractivity), refractionRatio(refractionRatio), geometry(geometry) { }
 };
 
 struct ModelToRender {
@@ -80,7 +82,9 @@ public:
     glm::vec3 Rotation;
 
     bool Outlined;
-    
+    bool Enabled = true;
+    bool IsDebugHelper = false;
+
     SceneObject(std::vector<SceneObjectElement> SceneObjectElements, LightProperties light): 
         SceneObjectElements(SceneObjectElements), Light(light)
     {
@@ -91,7 +95,9 @@ public:
     }
 
     glm::mat4 ComputeModel() {
-        auto model = glm::scale(glm::translate(glm::mat4(1.0f), this->Translation), this->Scale);
+        auto translated = glm::translate(glm::mat4(1.0f), this->Translation);
+        auto scaled = glm::scale(translated, this->Scale);
+        auto model = scaled;
         if (this->Rotation.x > 0.0001 || this->Rotation.x < 0.0001)
         {
             model = glm::rotate(model, this->Rotation.x, glm::vec3(1.0, 0.0, 0.0));
@@ -105,6 +111,12 @@ public:
             model = glm::rotate(model, this->Rotation.z, glm::vec3(0.0, 0.0, 1.0));
         }
         return model;
+    }
+
+    void UpdateGeometryVertices(Geometry geometry) {
+        if (SceneObjectElements.size() > 0) {
+            SceneObjectElements[0].vertexBuffer.Update(geometry.VertexData.data(), sizeof(Vertex) * geometry.VertexData.size());
+        }
     }
 
 };
@@ -128,7 +140,7 @@ public:
         std::vector<SceneObjectElement> geometry;
         auto obj = SceneObjectElement(
             va, vb, ib, shader, texture, specularHighlights, 
-            normalMap, reflectionMap, material, Geometry::ComputeBoundingBox(geo.VertexData), 0,0,0
+            normalMap, reflectionMap, material, Geometry::ComputeBoundingBox(geo.VertexData), 0,0,0, geo
         );
 
         geometry.push_back(obj);
@@ -156,7 +168,7 @@ public:
             auto mesh = SceneObjectElement(
                 va, vb, ib, obj.shader, obj.texture, obj.specularHighlight,
                 obj.normalMap, obj.reflectionMap, obj.material, Geometry::ComputeBoundingBox(obj.geometry.VertexData),
-                obj.reflectivity, obj.refractivity, obj.refractionRatio
+                obj.reflectivity, obj.refractivity, obj.refractionRatio, obj.geometry
             );
             allMeshes.push_back(mesh);
         }  

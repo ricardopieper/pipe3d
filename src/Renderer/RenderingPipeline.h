@@ -15,6 +15,8 @@ struct RenderingContext {
     std::shared_ptr<Framebuffer> ShadowMap;
     glm::mat4 LightSpace;
     float DeltaTime;
+    BoundingBox SceneBoundingBox;
+
 };
 
 class RenderingPipelineStage {

@@ -7,20 +7,6 @@
 #include "IndexBuffer.h"
 #include <limits>
 
-struct BoundingBox {
-    glm::vec3 min;
-    glm::vec3 max;
-
-    static BoundingBox MinMaxBox() {
-        float min = std::numeric_limits<float>().min();
-        float max = std::numeric_limits<float>().max();
-        BoundingBox box;
-        box.min = glm::vec3(max);
-        box.max = glm::vec3(min);
-        return box;
-    }
-};
-
 
 struct Material {
     glm::vec3 ambient;
@@ -54,6 +40,25 @@ struct Vertex {
         uv(uv) {}
 };
 
+struct BoundingBox {
+public:
+    glm::vec3 min;
+    glm::vec3 max;
+    
+
+    static BoundingBox MinMaxBox() {
+        constexpr float min = std::numeric_limits<float>().lowest();
+        constexpr float max = std::numeric_limits<float>().max();
+        BoundingBox box;
+        box.min = glm::vec3(max);
+        box.max = glm::vec3(min);
+        return box;
+    };
+
+
+};
+
+
 struct Geometry {
 public:
     std::vector<Vertex> VertexData;
@@ -79,5 +84,134 @@ public:
             box.max.z = std::max(box.max.z, vertex.position.z);
         }
         return box;
-    }   
+    }
+
+    static Geometry FromBoundingBox(BoundingBox& box) {
+      
+        Geometry geom;
+
+        glm::vec3 red(1, 0, 0);
+        glm::vec3 normal(1, 0, 0);
+        glm::vec2 uv(1, 0);
+
+        glm::vec3 front1 = box.max;
+        glm::vec3 front2 = glm::vec3(box.max.x, box.min.y, box.max.z);
+        glm::vec3 front3 = glm::vec3(box.min.x, box.min.y, box.max.z);
+        glm::vec3 front4 = glm::vec3(box.min.x, box.max.y, box.max.z);
+
+
+        glm::vec3 back1 = glm::vec3(box.min.x, box.max.y, box.min.z);
+        glm::vec3 back2 = box.min;
+        glm::vec3 back3 = glm::vec3(box.max.x, box.min.y, box.min.z);
+        glm::vec3 back4 = glm::vec3(box.max.x, box.max.y, box.min.z);
+
+
+        //Front Face
+        //triangle 1, max point
+        geom.VertexData.emplace_back(front1, red, normal, uv);
+        //triangle 1, below max at same level as min
+        geom.VertexData.emplace_back(front2, red, normal, uv);
+        //triangle 1, besides previous one
+        geom.VertexData.emplace_back(front3, red, normal, uv);
+
+        //triangle 2, same as previous one
+        geom.VertexData.emplace_back(front3, red, normal, uv);
+        //triangle 2, right above previous one
+        geom.VertexData.emplace_back(front4, red, normal, uv);
+        //triangle 2, same as the first one
+        geom.VertexData.emplace_back(front1, red, normal, uv);
+
+
+        //Top Face
+        //triangle 1, behind max
+        geom.VertexData.emplace_back(back4, red, normal, uv);
+        //triangle 1, same as max
+        geom.VertexData.emplace_back(front1, red, normal, uv);
+        //triangle 1, besides max
+        geom.VertexData.emplace_back(front4, red, normal, uv);
+
+        //triangle 2, same as previous one
+        geom.VertexData.emplace_back(front4, red, normal, uv);
+        //triangle 2, behind previous one (above min)
+        geom.VertexData.emplace_back(back1, red, normal, uv);
+        //triangle 2, same as triangle 1 first
+        geom.VertexData.emplace_back(back4, red, normal, uv);
+
+
+
+        //Back face
+        //triangle 1, above min
+        geom.VertexData.emplace_back(back1, red, normal, uv);
+        //triangle 1, min
+        geom.VertexData.emplace_back(back2, red, normal, uv);
+        //triangle 1, besides min
+        geom.VertexData.emplace_back(back3, red, normal, uv);
+
+        //triangle 2, same as previous one
+        geom.VertexData.emplace_back(back3, red, normal, uv);
+        //triangle 2, above previous one
+        geom.VertexData.emplace_back(back4, red, normal, uv);
+        //triangle 2, same as triangle 1 first
+        geom.VertexData.emplace_back(back1, red, normal, uv);
+
+
+        //Bottom face
+        //triangle 1, below max
+        geom.VertexData.emplace_back(front2, red, normal, uv);
+        //triangle 1, behind previous
+        geom.VertexData.emplace_back(back3, red, normal, uv);
+        //triangle 1, min
+        geom.VertexData.emplace_back(back2, red, normal, uv);
+
+        //triangle 2, same as previous one
+        geom.VertexData.emplace_back(back2, red, normal, uv);
+        //triangle 2, above previous one
+        geom.VertexData.emplace_back(front3, red, normal, uv);
+        //triangle 2, same as triangle 1 first
+        geom.VertexData.emplace_back(front2, red, normal, uv);
+
+
+
+        //Left face
+        //triangle 1, behind max
+        geom.VertexData.emplace_back(back4, red, normal, uv);
+        //triangle 1, below previous
+        geom.VertexData.emplace_back(back3, red, normal, uv);
+        //triangle 1, besides previous
+        geom.VertexData.emplace_back(front2, red, normal, uv);
+
+        //triangle 2, same as previous one
+        geom.VertexData.emplace_back(front2, red, normal, uv);
+        //triangle 2, above previous one
+        geom.VertexData.emplace_back(front1, red, normal, uv);
+        //triangle 2, same as triangle 1 first
+        geom.VertexData.emplace_back(back4, red, normal, uv);
+
+
+        //Right face
+        //triangle 1, besides max
+        geom.VertexData.emplace_back(front4, red, normal, uv);
+        //triangle 1, below previous
+        geom.VertexData.emplace_back(front3, red, normal, uv);
+        //triangle 1, besides previous (min)
+        geom.VertexData.emplace_back(back2, red, normal, uv);
+
+        //triangle 2, same as previous one
+        geom.VertexData.emplace_back(back2, red, normal, uv);
+        //triangle 2, above previous one
+        geom.VertexData.emplace_back(back1, red, normal, uv);
+        //triangle 2, same as triangle 1 first
+        geom.VertexData.emplace_back(front4, red, normal, uv);
+
+
+        for (int i = 0; i < 36; i++) {
+            geom.Indices.push_back(i);
+        }
+
+        return geom;
+        
+
+    };
 };
+
+

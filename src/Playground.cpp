@@ -264,7 +264,7 @@ int main()
         oneMeterCube->Translation.x = 2.2;
         oneMeterCube->Translation.y = -0.07;
         oneMeterCube->Translation.z = 0;
-        
+        oneMeterCube->Enabled = false;
         for (auto& it: oneMeterCube->SceneObjectElements) { 
             it.reflectivity = 0.7;
         };
@@ -279,19 +279,19 @@ int main()
         });*/
     
         CubemapTexture cubemapTex(std::vector<std::string> {
-            /*  "./assets/skyboxes/oceansky/right.jpg",
+            "./assets/skyboxes/oceansky/right.jpg",
             "./assets/skyboxes/oceansky/left.jpg",
             "./assets/skyboxes/oceansky/top.jpg",
             "./assets/skyboxes/oceansky/bottom.jpg",
             "./assets/skyboxes/oceansky/front.jpg",
-            "./assets/skyboxes/oceansky/back.jpg"*/
-            
+            "./assets/skyboxes/oceansky/back.jpg"
+            /*
             "./assets/skyboxes/Yokohama3/posx.jpg",
             "./assets/skyboxes/Yokohama3/negx.jpg",
             "./assets/skyboxes/Yokohama3/posy.jpg",
             "./assets/skyboxes/Yokohama3/negy.jpg",
             "./assets/skyboxes/Yokohama3/posz.jpg",
-            "./assets/skyboxes/Yokohama3/negz.jpg"
+            "./assets/skyboxes/Yokohama3/negz.jpg"*/
         });
 
         Skybox skybox(cubemapTex, skyboxShader);
@@ -311,6 +311,8 @@ int main()
         sun->Light.Ambient = glm::vec3(0.005);
         sun->Light.Diffuse = glm::vec3(0.3);
         sun->Light.Specular = glm::vec3(0.1);
+        sun->Name = "Sun";
+       
        // pointLight->Outlined = true;
 
         auto pointLight = scene.FromGeometry(
@@ -322,9 +324,11 @@ int main()
         pointLight->Light.Ambient = glm::vec3(0.3);
         pointLight->Light.Diffuse = glm::vec3(0.3);
         pointLight->Light.Specular = glm::vec3(0.3);
-        pointLight->Light.Constant = 1;
+        pointLight->Light.Constant = 10;
         pointLight->Light.Linear = 0.18;
         pointLight->Light.Quadratic = 0.01;
+        pointLight->Light.IsPoint = false;
+        pointLight->Enabled = false;
 
         auto pointLight2 = scene.FromGeometry(
             cubeGeometry, Material::DefaultMaterial(),
@@ -335,11 +339,11 @@ int main()
         pointLight2->Light.Ambient = glm::vec3(0.3);
         pointLight2->Light.Diffuse = glm::vec3(0.3);
         pointLight2->Light.Specular = glm::vec3(0.3);
-        pointLight2->Light.Constant = 1;
+        pointLight2->Light.Constant = 10;
         pointLight2->Light.Linear = 0.7;
         pointLight2->Light.Quadratic = 1.8;
-
-      
+        pointLight2->Light.IsPoint = false;
+        pointLight2->Enabled = false;
 
         auto sponzaWavefront = WavefrontMeshLoader::Load(
             "./assets/models/sponza/sponza.obj",
@@ -363,6 +367,7 @@ int main()
         auto sponza = scene.FromMeshes(sponzaModel);
         sponza->Translation = glm::vec3(0.0f, 0.0f, 0.0);
         sponza->Scale = glm::vec3(2.72f);
+        // sponza->Enabled = false;
 
         auto crysisGuyWavefront = WavefrontMeshLoader::Load(
             "./assets/models/nanosuit_reflection/nanosuit.obj",
@@ -384,6 +389,7 @@ int main()
         auto cryGuy = scene.FromMeshes(crysisGuyModel);
         cryGuy->Translation = glm::vec3(0.0f, 0.0f, -1.3f);
         cryGuy->Scale = glm::vec3(0.14);
+        cryGuy->Enabled = false;
 
         auto chloeWavefront = WavefrontMeshLoader::Load(
             "./assets/models/chloe-lis/0.obj",
@@ -409,6 +415,11 @@ int main()
         chloe->Translation = glm::vec3(-1.0, 0.0, 0.0);
         chloe->Scale = glm::vec3(1.16);
         chloe->Rotation = glm::vec3(0, glm::radians(90.0f), 0);
+        chloe->Enabled = true;
+        chloe->Name = "Chloe";
+
+        std::shared_ptr<SceneObject> sceneBoundingBoxRenderer;
+        
        /* auto donut = WavefrontMeshLoader::Load(
             "./assets/models/donut/donut3.obj",
             "./assets/models/donut/donut3.mtl");
@@ -591,7 +602,7 @@ int main()
             glm::mat4 projection = perspectiveProjection.GetProjectionMatrix(
                 window_width, window_height);
 
-            RenderingContext renderingContext{camera, scene, projection, nullptr, glm::mat4(0), deltaTime};
+            RenderingContext renderingContext{camera, scene, projection, nullptr, glm::mat4(0), deltaTime, BoundingBox::MinMaxBox()};
 
             defaultShader->Bind();
             //defaultShader->SetUniform1f("alphaDiscard", alphaDiscard);
@@ -689,7 +700,8 @@ int main()
             ImGui::DragFloat3("Diffuse Light", (float *)&pointLight->Light.Diffuse, 0.01, 0, 1);
             ImGui::DragFloat3("Specular Light", (float *)&pointLight->Light.Specular, 0.01, 0, 1);
             ImGui::DragFloat("Quadratic", (float *)&pointLight->Light.Quadratic, 0.01, 0, 100);
-            ImGui::DragFloat("Linear", (float *)&pointLight->Light.Linear, 0.01, 0, 100);
+            ImGui::DragFloat("Linear", (float*)&pointLight->Light.Linear, 0.01, 0, 100);
+            ImGui::DragFloat("Power", (float *)&pointLight->Light.Constant, 1, 0, 1000);
             ImGui::Checkbox("Enable light", (bool *)&pointLight->Light.IsPoint);
             ImGui::End();
 
@@ -728,6 +740,19 @@ int main()
             ImGui::Text("Performance: %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
 
+            /*
+            ImGui::Begin("Shadow Map");
+            ImVec2 pos = ImGui::GetCursorScreenPos();
+            ImGui::GetWindowDrawList()->AddImage(
+                (void*)renderingContext.ShadowMap->TextureId,
+                ImVec2(ImGui::GetCursorScreenPos()),
+                ImVec2(ImGui::GetCursorScreenPos().x + window_width / 2,
+                    ImGui::GetCursorScreenPos().y + window_height / 2),
+                ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::End();
+            */
+
+
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
             glfwSetInputMode(window, GLFW_CURSOR, glfwCursorState);
@@ -736,6 +761,21 @@ int main()
 
             glfwSwapBuffers(window);
             glfwPollEvents();
+
+           /* if (sceneBoundingBoxRenderer.get() == nullptr) {
+                auto geom = Geometry::FromBoundingBox(renderingContext.SceneBoundingBox);
+                sceneBoundingBoxRenderer = scene.FromGeometry(
+                    geom, Material::DefaultColoredMaterial(glm::vec3(1, 0, 0)),
+                    singleColorShader, Texture(""), Texture(""), Texture(""), Texture("")
+                );
+                sceneBoundingBoxRenderer->Enabled = true;
+                sceneBoundingBoxRenderer->IsDebugHelper = true;
+            }
+            else {
+                auto geom = Geometry::FromBoundingBox(renderingContext.SceneBoundingBox);
+                sceneBoundingBoxRenderer->UpdateGeometryVertices(geom);
+            }*/
+
 
            // printf("Camera position: %f %f %f\n",
               //   renderingContext.CurrentCamera.Position.x,
