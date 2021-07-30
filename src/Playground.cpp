@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <Tracy.hpp>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -39,7 +40,7 @@
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
-#include <windows.h>
+
 #include <string>
 #include <iostream>
 
@@ -158,18 +159,14 @@ std::string ReplaceString(std::string subject, const std::string &search,
     return subject;
 }
 
-std::wstring ExePath() {
-    wchar_t buffer[MAX_PATH] = { 0 };
-    GetModuleFileNameW(NULL, buffer, MAX_PATH);
-    std::wstring::size_type pos = std::wstring(buffer).find_last_of(L"\\/");
-    return std::wstring(buffer).substr(0, pos);
-}
-
 
 float mouseWheel = 0;
-int main()
-{
-    std::wcout << "my directory is " << ExePath() << "\n";
+int main() {
+
+    #ifdef TRACY_ENABLE
+    std::cout<<"Tracy enabled!" << std::endl;
+    #endif
+
     glfwInit();
     //glfwWindowHint(GLFW_DOUBLEBUFFER, GL_FALSE);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -308,7 +305,7 @@ int main()
         sun->Translation = glm::vec3(0.0f, 20.0f, 0.0);
         sun->Scale = glm::vec3(0.1);
         sun->Light.IsDirectional = true;
-        sun->Light.Ambient = glm::vec3(0.005);
+        sun->Light.Ambient = glm::vec3(0.085);
         sun->Light.Diffuse = glm::vec3(0.3);
         sun->Light.Specular = glm::vec3(0.1);
         sun->Name = "Sun";
@@ -517,6 +514,8 @@ int main()
         while (!glfwWindowShouldClose(window))
         {
 
+            FrameMarkStart("Frame");
+
             double currentTime = glfwGetTime();
             float deltaTime = currentTime - lastTime;
             io.DeltaTime = deltaTime;
@@ -714,8 +713,6 @@ int main()
             ImGui::DragFloat3("Specular Light", (float *)&sun->Light.Specular, 0.01, 0, 1);
             ImGui::End();
 
-
-
             ImGui::Begin("Light cube 2");
             ImGui::DragFloat3("Translation", (float *)&pointLight2->Translation, 0.1, -2000, 2000);
             ImGui::DragFloat3("Rotation", (float *)&pointLight2->Rotation, 0.01, -pi * 2, pi * 2);
@@ -740,17 +737,20 @@ int main()
             ImGui::Text("Performance: %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
 
-            /*
+            
             ImGui::Begin("Shadow Map");
             ImVec2 pos = ImGui::GetCursorScreenPos();
+           
+           
             ImGui::GetWindowDrawList()->AddImage(
-                (void*)renderingContext.ShadowMap->TextureId,
-                ImVec2(ImGui::GetCursorScreenPos()),
-                ImVec2(ImGui::GetCursorScreenPos().x + window_width / 2,
-                    ImGui::GetCursorScreenPos().y + window_height / 2),
-                ImVec2(0, 1), ImVec2(1, 0));
+                (void*)renderingContext.ShadowMap->TextureId, //user_texture_id
+                ImVec2(ImGui::GetCursorScreenPos()), //p_min
+                ImVec2(ImGui::GetCursorScreenPos().x + window_width / 4,
+                       ImGui::GetCursorScreenPos().y + window_height / 4), //p_max
+                ImVec2(0, 1), //uv_min
+                ImVec2(1, 0)); //uv_max
             ImGui::End();
-            */
+            
 
 
             ImGui::Render();
@@ -783,6 +783,9 @@ int main()
               //   renderingContext.CurrentCamera.Position.z );
             // printf("Camera angle: h %f v %f\n",
             //     camera.horizontalAngle, camera.verticalAngle);
+
+
+            FrameMarkEnd("Frame");
         }
     }
 

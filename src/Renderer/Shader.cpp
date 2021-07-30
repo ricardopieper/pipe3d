@@ -11,11 +11,6 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <thread>
-#include <windows.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <tchar.h>
-#include <Shlwapi.h>
 
 static std::string LoadFile(const std::string& path) {
     std::ifstream t(path);
@@ -74,6 +69,12 @@ void Shader::Reload() {
 }
 
 #ifdef _WIN32
+
+#include <windows.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <tchar.h>
+#include <Shlwapi.h>
 
 void Shader::ListenChanges() {
 

@@ -124,13 +124,13 @@ float ComputeShadow(vec4 lightFrag, vec3 normal, vec3 lightDir) {
     int neighbors = 3s;
     float pcf = 0.0;
     int samplesTaken = 0;
-    float bias = max(0.00005 * (1.0 - dot(normal, lightDir)), 0.00005);  
-
+    float bias = max(0.0005 * (1.0 - dot(normal, lightDir)), 0.00005);  
+  
     for (int i = -neighbors; i <= neighbors; i++) {
          for (int j = -neighbors; j <= neighbors; j++) {
             vec2 xy = projCoords.xy + vec2(float(i), float(j)) * texelSize;
             float samplePcf = texture(shadowMap, xy).r;
-            pcf += currentDepth - bias > samplePcf ? 1.0 : 0.0; 
+            pcf += currentDepth -samplePcf > bias ? 1.0 : 0.0; 
             samplesTaken++;
         }   
     }
@@ -163,6 +163,7 @@ vec4 ComputeLight(Light light, float attenuation,
     float shadow = 0;// 
     if (considerShadows) {
         shadow = ComputeShadow(fragmentPosLight, normal, lightDir);
+        //return vec4(vec3(shadow), 1);
     }
     //ambient    
     vec4 ambient = vec4(light.ambient, 1) * fragColor;

@@ -90,7 +90,7 @@ public:
         for (auto& obj: context.CurrentScene.SceneObjects) {
             if (obj->Light.IsDirectional) {
                 lightMatrix = glm::lookAt(
-                    midScene + obj->Translation,
+                    midScene + glm::vec3(obj->Translation.x, max.y, obj->Translation.z),
                     midScene,
                     glm::vec3(0.0f, 0.0f, 1.0f)
                 );
@@ -110,12 +110,13 @@ public:
                 if (light->Light.IsDirectional) {
 
                     float sceneWidth = abs(max.x - min.x);
+                    float sceneLength = abs(max.z - min.z);
                     float sceneHeight = abs(max.y - min.y);
 
                     glm::mat4 lightProjection = glm::ortho(
                         -sceneWidth/2.0f, +sceneWidth / 2.0f,
-                        -sceneHeight/2.0f, +sceneHeight / 2.0f,
-                        0.001f, light->Translation.y + 0.1f);
+                        -sceneLength/2.0f, +sceneLength / 2.0f,
+                        -sceneHeight * 2, +sceneHeight * 2);
               
                     glm::mat4 lightSpace = lightProjection * lightMatrix;
                     context.LightSpace = lightSpace;
