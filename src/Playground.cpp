@@ -254,10 +254,10 @@ int main() {
             oneMeterCubeModel[0].ConvertToGeometry(),
             oneMeterCubeModel[0].GetMaterial(),
             defaultShader,
-            Texture(""),
-            Texture(""),
-            Texture(""),
-            Texture(""));
+            Texture(),
+            Texture(),
+            Texture(),
+            Texture());
         oneMeterCube->Translation.x = 2.2;
         oneMeterCube->Translation.y = -0.07;
         oneMeterCube->Translation.z = 0;
@@ -300,7 +300,7 @@ int main() {
         Geometry cubeGeometry = wavefrontCube[0].ConvertToGeometry();
         auto sun = scene.FromGeometry(
             cubeGeometry, Material::DefaultMaterial(),
-            singleColorShader, Texture(""), Texture(""), Texture(""),Texture(""));
+            singleColorShader, Texture(), Texture(), Texture(),Texture());
         //sun->Translation = glm::vec3(4.8f, 6.3, 1.3);
         sun->Translation = glm::vec3(0.0f, 20.0f, 0.0);
         sun->Scale = glm::vec3(0.1);
@@ -314,7 +314,7 @@ int main() {
 
         auto pointLight = scene.FromGeometry(
             cubeGeometry, Material::DefaultMaterial(),
-            singleColorShader, Texture(""), Texture(""), Texture(""), Texture(""));
+            singleColorShader, Texture(), Texture(), Texture(), Texture());
         pointLight->Translation = glm::vec3(0.0f);
         pointLight->Scale = glm::vec3(0.1);
         pointLight->Light.IsPoint = true;
@@ -329,7 +329,7 @@ int main() {
 
         auto pointLight2 = scene.FromGeometry(
             cubeGeometry, Material::DefaultMaterial(),
-            singleColorShader, Texture(""), Texture(""), Texture(""),Texture(""));
+            singleColorShader, Texture(), Texture(), Texture(),Texture());
         pointLight2->Translation = glm::vec3(1.0f, 0.0f, 1.0f);
         pointLight2->Scale = glm::vec3(0.1);
         pointLight2->Light.IsPoint = true;
@@ -358,7 +358,7 @@ int main() {
             Texture tex = textureCache.GetTexture(sponzaObj.diffuseTexturePath);
             Texture specularHighlights = textureCache.GetTexture(sponzaObj.specularTexturePath, false);
             Texture normalMap = textureCache.GetTexture(sponzaObj.bumpTexturePath, false);
-            sponzaModel.emplace_back(geom, material, defaultShader, tex, specularHighlights, normalMap, Texture(""));
+            sponzaModel.emplace_back(geom, material, defaultShader, tex, specularHighlights, normalMap, Texture());
         }
 
         auto sponza = scene.FromMeshes(sponzaModel);
@@ -384,9 +384,10 @@ int main() {
         }
 
         auto cryGuy = scene.FromMeshes(crysisGuyModel);
-        cryGuy->Translation = glm::vec3(0.0f, 0.0f, -1.3f);
+        cryGuy->Translation = glm::vec3(2.1f, 0.0f, -0.4f);
+        cryGuy->Rotation = glm::vec3(0.0f, -1.04f, 0.0f);
         cryGuy->Scale = glm::vec3(0.14);
-        cryGuy->Enabled = false;
+        cryGuy->Enabled = true;
 
         auto chloeWavefront = WavefrontMeshLoader::Load(
             "./assets/models/chloe-lis/0.obj",
@@ -404,7 +405,7 @@ int main() {
             texPath = ReplaceString(texPath, "\\", "/");
 
             Texture tex = textureCache.GetTexture(texPath);
-            chloeModel.emplace_back(geom, material, defaultShader, tex, Texture(""), Texture(""),  Texture(""));
+            chloeModel.emplace_back(geom, material, defaultShader, tex, Texture(), Texture(),  Texture());
             //emplaced.reflectivity = 1.0;
         }
 
@@ -427,10 +428,9 @@ int main() {
                 continue;
             Geometry geom = wavefrontObj.ConvertToGeometry();
             auto obj = scene.FromGeometry(geom, wavefrontObj.GetMaterial(), defaultShader,
-                                          Texture(""), Texture(""), Texture(""));
+                                          Texture(), Texture(), Texture());
             obj->Translation = glm::vec3(0.3, 0.0, 0.3);
         }*/
-
         //glFrontFace(GL_CW);
         glEnable(GL_FRAMEBUFFER_SRGB);
         glEnable(GL_DEPTH_TEST);
@@ -766,7 +766,7 @@ int main() {
                 auto geom = Geometry::FromBoundingBox(renderingContext.SceneBoundingBox);
                 sceneBoundingBoxRenderer = scene.FromGeometry(
                     geom, Material::DefaultColoredMaterial(glm::vec3(1, 0, 0)),
-                    singleColorShader, Texture(""), Texture(""), Texture(""), Texture("")
+                    singleColorShader, Texture(), Texture(), Texture(), Texture()
                 );
                 sceneBoundingBoxRenderer->Enabled = true;
                 sceneBoundingBoxRenderer->IsDebugHelper = true;

@@ -1,9 +1,12 @@
-#pragma once 
+#pragma once
+
 #include <glad/glad.h>
 #include "stb_image.h"
 #include <vector>
 #include <string>
 #include <iostream>
+
+
 
 class CubemapTexture {
 private:
@@ -15,16 +18,19 @@ public:
         glBindTexture(GL_TEXTURE_CUBE_MAP, textureId);
         //stbi_set_flip_vertically_on_load(1);
         for (unsigned int i = 0; i < faces.size(); i++) {
-            int width, height, channels;
-            unsigned char* data = 
-                stbi_load(faces[i].c_str(), &width, &height,&channels, 0);
-            if (data) {
+            Image img = Image::Load(faces[i], false);
+
+            if (img.Width) {
+                img.SaveCache();
                 glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                    0, GL_SRGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-                stbi_image_free(data);
+                    0, 
+                    img.GetOpenglFormat(true), 
+                    img.Width, img.Height, 0, 
+                    img.GetOpenglFormat(false),
+                    GL_UNSIGNED_BYTE, img.Data);
+                img.Dispose();
             } else {
                 std::cout << "Cubemap tex failed to load at path "<<faces[i] << std::endl;
-                stbi_image_free(data);
             }
         }
         glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
