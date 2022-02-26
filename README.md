@@ -1,5 +1,6 @@
 # pipe3d
 A 3D rendering engine.
+This is merely a prototype to learn OpenGL and 3D rendering, so the code is indeed a huge mess, but allows me to iterate quickly on some ideas. 
 
 This is the result of reading and watching the following:
 
